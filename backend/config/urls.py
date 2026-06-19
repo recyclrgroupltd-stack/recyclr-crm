@@ -3,9 +3,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from .views import admin_actions_view
+from .views import admin_actions_view, health_view
 
 urlpatterns = [
+    path("api/health/", health_view, name="api-health"),
     path("admin/actions/", admin.site.admin_view(admin_actions_view), name="admin-actions"),
     path("admin/", admin.site.urls),
 

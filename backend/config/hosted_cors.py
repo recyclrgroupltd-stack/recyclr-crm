@@ -43,6 +43,8 @@ class HostedCorsMiddleware:
                 "accept, authorization, content-type, user-agent, x-csrftoken, "
                 "x-requested-with, x-staff-username"
             )
+            response["Access-Control-Expose-Headers"] = "X-Recyclr-Cors"
+            response["X-Recyclr-Cors"] = "middleware"
             response["Access-Control-Max-Age"] = "86400"
             vary = response.get("Vary")
             if vary:

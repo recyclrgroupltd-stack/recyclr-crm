@@ -143,6 +143,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = env_bool("DJANGO_CORS_ALLOW_ALL_ORIGINS", "True")
+CORS_ALLOW_CREDENTIALS = True
+CORS_URLS_REGEX = r"^.*$"
+CORS_PREFLIGHT_MAX_AGE = 86400
 
 _allowed_origins = os.getenv(
     "DJANGO_CORS_ALLOWED_ORIGINS",

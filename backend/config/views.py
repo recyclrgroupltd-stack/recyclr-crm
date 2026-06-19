@@ -1,7 +1,12 @@
 from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
+from django.http import JsonResponse
 from django.shortcuts import render
+
+
+def health_view(request):
+    return JsonResponse({"status": "ok", "service": "recyclr-crm-backend"})
 
 
 @staff_member_required

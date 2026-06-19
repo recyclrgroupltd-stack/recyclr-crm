@@ -33,6 +33,9 @@ def _cors_headers(origin):
             "accept, authorization, content-type, user-agent, x-csrftoken, "
             "x-requested-with, x-staff-username",
         ),
+        ("Access-Control-Expose-Headers", "X-Recyclr-Cors"),
+        ("X-Recyclr-Cors", "wsgi"),
+        ("Vary", "Origin"),
         ("Access-Control-Max-Age", "86400"),
     ]
 
