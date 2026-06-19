@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/auth/login",
+        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login",
+      },
+      {
+        source: "/api/auth/login/",
+        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login",
+      },
+      {
         source: "/api/:path*",
         destination: "https://recyclr-crm-backend.onrender.com/api/:path*",
       },
