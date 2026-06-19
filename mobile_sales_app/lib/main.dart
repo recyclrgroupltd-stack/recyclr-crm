@@ -106,7 +106,11 @@ class _SessionGateState extends State<SessionGate> {
 }
 
 String defaultBackendUrl() {
-  return 'http://127.0.0.1:8000';
+  const configuredBackend = String.fromEnvironment('API_BASE_URL');
+  if (configuredBackend.isNotEmpty) {
+    return configuredBackend;
+  }
+  return 'https://recyclr-crm-backend.onrender.com';
 }
 
 class StaffSession {
