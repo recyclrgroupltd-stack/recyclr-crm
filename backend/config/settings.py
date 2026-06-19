@@ -148,6 +148,13 @@ _allowed_origins = os.getenv(
     "http://127.0.0.1:3000,http://localhost:3000,https://recyclr-crm.vercel.app",
 ).split(",")
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _allowed_origins if origin.strip()]
+for origin in [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "https://recyclr-crm.vercel.app",
+]:
+    if origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
 
 _allowed_origin_regexes = os.getenv(
     "DJANGO_CORS_ALLOWED_ORIGIN_REGEXES",
@@ -155,6 +162,16 @@ _allowed_origin_regexes = os.getenv(
 ).split(",")
 CORS_ALLOWED_ORIGIN_REGEXES = [
     origin.strip() for origin in _allowed_origin_regexes if origin.strip()
+]
+for origin_regex in [r"^https://.*\.vercel\.app$"]:
+    if origin_regex not in CORS_ALLOWED_ORIGIN_REGEXES:
+        CORS_ALLOWED_ORIGIN_REGEXES.append(origin_regex)
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+    "https://recyclr-crm.vercel.app",
+    "https://*.vercel.app",
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
