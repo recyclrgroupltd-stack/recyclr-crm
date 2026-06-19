@@ -1,0 +1,41 @@
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Django local/runtime files
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+tmp_quote_payload.json
+
+# Node / Next
+frontend/.git_backup_before_crm_monorepo/
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+
+# Flutter / Android
+mobile_sales_app/.dart_tool/
+mobile_sales_app/.flutter-plugins-dependencies
+mobile_sales_app/build/
+mobile_sales_app/android/key.properties
+mobile_sales_app/android/app/*.jks
+mobile_sales_app/android/app/*.keystore
+mobile_sales_app/android/.gradle/
+mobile_sales_app/android/local.properties
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

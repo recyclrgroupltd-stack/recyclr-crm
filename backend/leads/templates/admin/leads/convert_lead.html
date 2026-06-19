@@ -1,0 +1,289 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+<style>
+  .convert-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 18px;
+  }
+
+  .convert-section {
+    margin-bottom: 24px;
+  }
+
+  .stream-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 14px 18px;
+    align-items: end;
+  }
+
+  .stream-box {
+    padding: 16px;
+    border: 1px solid #2f2f2f;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+
+  .stream-box.disabled {
+    opacity: 0.45;
+  }
+
+  .hidden-row {
+    display: none;
+  }
+
+  .stream-box h3 {
+    margin-top: 0;
+    margin-bottom: 14px;
+  }
+
+  .field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field-row label {
+    font-weight: 600;
+    margin-bottom: 0;
+  }
+
+  .field-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .checkbox-row label {
+    margin: 0;
+  }
+
+  .field-row input,
+  .field-row select,
+  .field-row textarea {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .notes-box textarea,
+  .customer-box textarea,
+  .site-box textarea {
+    min-height: 120px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="convert-section">
+      <fieldset class="module aligned customer-box">
+        <h2>Customer Details</h2>
+        <div class="convert-grid">
+          <div class="field-row">{{ form.business_name.as_field_group }}</div>
+          <div class="field-row">{{ form.trading_name.as_field_group }}</div>
+          <div class="field-row">{{ form.company_number.as_field_group }}</div>
+          <div class="field-row">{{ form.vat_number.as_field_group }}</div>
+
+          <div class="field-row">{{ form.billing_address_line_1.as_field_group }}</div>
+          <div class="field-row">{{ form.billing_address_line_2.as_field_group }}</div>
+          <div class="field-row">{{ form.billing_town.as_field_group }}</div>
+          <div class="field-row">{{ form.billing_county.as_field_group }}</div>
+          <div class="field-row">{{ form.billing_postcode.as_field_group }}</div>
+          <div class="field-row">{{ form.billing_address.as_field_group }}</div>
+
+          <div class="field-row">{{ form.primary_contact_name.as_field_group }}</div>
+          <div class="field-row">{{ form.phone.as_field_group }}</div>
+          <div class="field-row">{{ form.secondary_contact_name.as_field_group }}</div>
+          <div class="field-row">{{ form.secondary_phone.as_field_group }}</div>
+          <div class="field-row">{{ form.email.as_field_group }}</div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="convert-section">
+      <fieldset class="module aligned site-box">
+        <h2>Site Details</h2>
+        <div class="convert-grid">
+          <div class="field-row">{{ form.site_name.as_field_group }}</div>
+          <div class="field-row">{{ form.site_address_line_1.as_field_group }}</div>
+          <div class="field-row">{{ form.site_address_line_2.as_field_group }}</div>
+          <div class="field-row">{{ form.site_town.as_field_group }}</div>
+          <div class="field-row">{{ form.site_county.as_field_group }}</div>
+          <div class="field-row">{{ form.site_postcode.as_field_group }}</div>
+          <div class="field-row">{{ form.site_address.as_field_group }}</div>
+          <div class="field-row">{{ form.site_primary_contact_name.as_field_group }}</div>
+          <div class="field-row">{{ form.site_phone.as_field_group }}</div>
+          <div class="field-row">{{ form.site_secondary_contact_name.as_field_group }}</div>
+          <div class="field-row">{{ form.site_secondary_phone.as_field_group }}</div>
+          <div class="field-row">{{ form.site_email.as_field_group }}</div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="convert-section">
+      <fieldset class="module aligned">
+        <h2>Services to Create</h2>
+
+        <div class="stream-box" id="general-waste-box">
+          <h3>General Waste</h3>
+          <div class="stream-grid">
+            <div class="field-row checkbox-row">{{ form.general_waste_required.as_field_group }}</div>
+            <div class="field-row">{{ form.general_waste_bin_count.as_field_group }}</div>
+            <div class="field-row">{{ form.general_waste_bin_size.as_field_group }}</div>
+            <div class="field-row">{{ form.general_waste_collections_per_week.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="general_waste_lock_required_wrap">{{ form.general_waste_lock_required.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="general_waste_metal_bin_required_wrap">{{ form.general_waste_metal_bin_required.as_field_group }}</div>
+          </div>
+        </div>
+
+        <div class="stream-box" id="recycling-box">
+          <h3>Dry Mixed Recycling</h3>
+          <div class="stream-grid">
+            <div class="field-row checkbox-row">{{ form.recycling_required.as_field_group }}</div>
+            <div class="field-row">{{ form.recycling_bin_count.as_field_group }}</div>
+            <div class="field-row">{{ form.recycling_bin_size.as_field_group }}</div>
+            <div class="field-row">{{ form.recycling_collections_per_week.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="recycling_lock_required_wrap">{{ form.recycling_lock_required.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="recycling_metal_bin_required_wrap">{{ form.recycling_metal_bin_required.as_field_group }}</div>
+          </div>
+        </div>
+
+        <div class="stream-box" id="glass-box">
+          <h3>Glass</h3>
+          <div class="stream-grid">
+            <div class="field-row checkbox-row">{{ form.glass_required.as_field_group }}</div>
+            <div class="field-row">{{ form.glass_bin_count.as_field_group }}</div>
+            <div class="field-row">{{ form.glass_bin_size.as_field_group }}</div>
+            <div class="field-row">{{ form.glass_collections_per_week.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="glass_lock_required_wrap">{{ form.glass_lock_required.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="glass_metal_bin_required_wrap">{{ form.glass_metal_bin_required.as_field_group }}</div>
+          </div>
+        </div>
+
+        <div class="stream-box" id="food-box">
+          <h3>Food</h3>
+          <div class="stream-grid">
+            <div class="field-row checkbox-row">{{ form.food_required.as_field_group }}</div>
+            <div class="field-row">{{ form.food_bin_count.as_field_group }}</div>
+            <div class="field-row">{{ form.food_bin_size.as_field_group }}</div>
+            <div class="field-row">{{ form.food_collections_per_week.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="food_lock_required_wrap">{{ form.food_lock_required.as_field_group }}</div>
+            <div class="field-row checkbox-row" id="food_metal_bin_required_wrap">{{ form.food_metal_bin_required.as_field_group }}</div>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="convert-section">
+      <fieldset class="module aligned notes-box">
+        <h2>Notes</h2>
+        <div class="field-row">{{ form.notes.as_field_group }}</div>
+      </fieldset>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <button type="submit" class="default">Convert Lead</button>
+      <a href="{% url 'admin:leads_lead_change' lead.pk %}" class="button">Cancel</a>
+    </div>
+  </form>
+
+  <script>
+    function toggleStream(checkboxId, fieldIds, boxId) {
+      const checkbox = document.getElementById(checkboxId);
+      const box = document.getElementById(boxId);
+
+      function applyState() {
+        const enabled = checkbox.checked;
+        if (enabled) {
+          box.classList.remove("disabled");
+        } else {
+          box.classList.add("disabled");
+        }
+
+        fieldIds.forEach(function (id) {
+          const field = document.getElementById(id);
+          if (!field) return;
+          field.disabled = !enabled;
+        });
+
+        checkbox.disabled = false;
+      }
+
+      checkbox.addEventListener("change", applyState);
+      applyState();
+    }
+
+    function toggleMetalOption(sizeFieldId, metalWrapId, metalFieldId) {
+      const sizeField = document.getElementById(sizeFieldId);
+      const metalWrap = document.getElementById(metalWrapId);
+      const metalField = document.getElementById(metalFieldId);
+
+      if (!sizeField || !metalWrap || !metalField) return;
+
+      function applyState() {
+        const size = sizeField.value;
+        const showMetal = size === "660" || size === "1100";
+
+        if (showMetal) {
+          metalWrap.classList.remove("hidden-row");
+          metalField.disabled = false;
+        } else {
+          metalWrap.classList.add("hidden-row");
+          metalField.checked = false;
+          metalField.disabled = true;
+        }
+      }
+
+      sizeField.addEventListener("change", applyState);
+      applyState();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      toggleStream("id_general_waste_required", [
+        "id_general_waste_bin_count",
+        "id_general_waste_bin_size",
+        "id_general_waste_collections_per_week",
+        "id_general_waste_lock_required",
+        "id_general_waste_metal_bin_required"
+      ], "general-waste-box");
+
+      toggleStream("id_recycling_required", [
+        "id_recycling_bin_count",
+        "id_recycling_bin_size",
+        "id_recycling_collections_per_week",
+        "id_recycling_lock_required",
+        "id_recycling_metal_bin_required"
+      ], "recycling-box");
+
+      toggleStream("id_glass_required", [
+        "id_glass_bin_count",
+        "id_glass_bin_size",
+        "id_glass_collections_per_week",
+        "id_glass_lock_required",
+        "id_glass_metal_bin_required"
+      ], "glass-box");
+
+      toggleStream("id_food_required", [
+        "id_food_bin_count",
+        "id_food_bin_size",
+        "id_food_collections_per_week",
+        "id_food_lock_required",
+        "id_food_metal_bin_required"
+      ], "food-box");
+
+      toggleMetalOption("id_general_waste_bin_size", "general_waste_metal_bin_required_wrap", "id_general_waste_metal_bin_required");
+      toggleMetalOption("id_recycling_bin_size", "recycling_metal_bin_required_wrap", "id_recycling_metal_bin_required");
+      toggleMetalOption("id_glass_bin_size", "glass_metal_bin_required_wrap", "id_glass_metal_bin_required");
+      toggleMetalOption("id_food_bin_size", "food_metal_bin_required_wrap", "id_food_metal_bin_required");
+    });
+  </script>
+{% endblock %}

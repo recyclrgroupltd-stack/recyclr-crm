@@ -1,0 +1,7 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ price_map|json_script:"service-price-map" }}
+    {{ site_map|json_script:"service-site-map" }}
+{% endblock %}

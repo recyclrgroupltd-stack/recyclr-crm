@@ -1,0 +1,182 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+<style>
+    .actions-filter-box {
+        padding: 18px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+    }
+
+    .actions-filter-form {
+        display: flex;
+        gap: 16px;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .actions-filter-form label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+    }
+
+    .actions-filter-form select {
+        min-width: 220px;
+    }
+
+    .actions-table-wrap {
+        overflow-x: auto;
+    }
+
+    .actions-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .actions-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        text-align: left;
+        padding: 12px 14px;
+        border-bottom: 1px solid #2f2f2f;
+    }
+
+    .actions-table tbody td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #202020;
+        vertical-align: top;
+    }
+
+    .actions-table tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+
+    .badge-added {
+        background: rgba(46, 204, 113, 0.18);
+        color: #7ee2a8;
+        border: 1px solid rgba(46, 204, 113, 0.35);
+    }
+
+    .badge-changed {
+        background: rgba(52, 152, 219, 0.18);
+        color: #8fc7f0;
+        border: 1px solid rgba(52, 152, 219, 0.35);
+    }
+
+    .badge-deleted {
+        background: rgba(231, 76, 60, 0.18);
+        color: #f29b92;
+        border: 1px solid rgba(231, 76, 60, 0.35);
+    }
+
+    .badge-other {
+        background: rgba(149, 165, 166, 0.18);
+        color: #d0d7d8;
+        border: 1px solid rgba(149, 165, 166, 0.35);
+    }
+
+    .muted-type {
+        opacity: 0.8;
+        font-size: 12px;
+    }
+
+    .actions-page-title {
+        margin-bottom: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 class="actions-page-title">Admin Actions</h1>
+
+<div class="module actions-filter-box">
+    <form method="get" class="actions-filter-form">
+        <div>
+            <label for="id_scope">Scope</label>
+            <select name="scope" id="id_scope">
+                <option value="my" {% if scope == "my" %}selected{% endif %}>My actions</option>
+                <option value="all" {% if scope == "all" %}selected{% endif %}>Everyone's actions</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="id_user_id">Specific user</label>
+            <select name="user_id" id="id_user_id">
+                <option value="">---------</option>
+                {% for user in users %}
+                    <option value="{{ user.id }}" {% if selected_user_id == user.id|stringformat:"s" %}selected{% endif %}>
+                        {{ user.username }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="button default">Apply</button>
+            <a href="{% url 'admin-actions' %}" class="button">Reset</a>
+        </div>
+    </form>
+</div>
+
+<div class="module actions-table-wrap">
+    <table class="actions-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Object</th>
+                <th>Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in log_entries %}
+                <tr>
+                    <td>{{ entry.action_time|date:"d/m/Y H:i" }}</td>
+                    <td>{{ entry.user.username }}</td>
+                    <td>
+                        {% if entry.action_flag == ADDITION %}
+                            <span class="badge badge-added">Added</span>
+                        {% elif entry.action_flag == CHANGE %}
+                            <span class="badge badge-changed">Changed</span>
+                        {% elif entry.action_flag == DELETION %}
+                            <span class="badge badge-deleted">Deleted</span>
+                        {% else %}
+                            <span class="badge badge-other">Action</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.get_admin_url %}
+                            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                        {% else %}
+                            {{ entry.object_repr }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if entry.content_type %}
+                            <span class="muted-type">{{ entry.content_type }}</span>
+                        {% else %}
+                            <span class="muted-type">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5">No actions found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
