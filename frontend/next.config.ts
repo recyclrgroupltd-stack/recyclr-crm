@@ -1,12 +1,23 @@
 import type { NextConfig } from "next";
 
 const backendBase =
-  process.env.NEXT_PUBLIC_BACKEND_BASE ||
-  (process.env.NODE_ENV === "production"
-    ? "https://recyclr-crm-backend.onrender.com"
-    : "http://127.0.0.1:8000");
+  process.env.NODE_ENV === "production"
+    ? ""
+    : process.env.NEXT_PUBLIC_BACKEND_BASE || "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://recyclr-crm-backend.onrender.com/api/:path*",
+      },
+      {
+        source: "/media/:path*",
+        destination: "https://recyclr-crm-backend.onrender.com/media/:path*",
+      },
+    ];
+  },
   webpack: (config, { webpack }) => {
     config.plugins.push(
       new webpack.DefinePlugin({
