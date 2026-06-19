@@ -1,4 +1,5 @@
 import base64
+import logging
 import secrets
 import string
 
@@ -19,6 +20,7 @@ from .permissions import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 ROLE_TO_GROUP = {
     "admin": "Admin",
@@ -176,6 +178,34 @@ def serialize_user(user):
     }
 
 
+def serialize_user_minimal(user):
+    role = get_staff_role(user)
+    permissions = get_role_permissions(role)
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "is_staff": user.is_staff,
+        "is_superuser": user.is_superuser,
+        "is_active": user.is_active,
+        "role": role,
+        "permissions": permissions,
+        "overrides": [],
+        "profile": {
+            "company_email": derived_company_email(user.username),
+            "company_phone": "",
+            "job_title": "",
+            "auto_assign_customers": False,
+            "mailbox_enabled": False,
+            "mailbox_password": "",
+            "mailbox_has_password": False,
+            "about_me": "",
+            "photo_data": "",
+            "updated_at": None,
+        },
+    }
+
+
 def get_request_user_from_username(username):
     if not username:
         return None
@@ -256,8 +286,12 @@ def login_view(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user.pk)
-    user_data = serialize_user(user)
+    try:
+        user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user.pk)
+        user_data = serialize_user(user)
+    except Exception:
+        logger.exception("Could not build full login payload for user %s", user.pk)
+        user_data = serialize_user_minimal(user)
 
     return Response(
         {

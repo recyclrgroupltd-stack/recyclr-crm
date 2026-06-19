@@ -1,27 +1,28 @@
 const LOCAL_BACKEND_BASE = "http://127.0.0.1:8000";
 const LOCALHOST_BACKEND_BASE = "http://localhost:8000";
 const HOSTED_BACKEND_BASE = "https://recyclr-crm-backend.onrender.com";
+const isProduction = process.env.NODE_ENV === "production";
 
 export const BACKEND_BASE =
-  process.env.NODE_ENV === "production"
-    ? process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE
-    : process.env.NEXT_PUBLIC_BACKEND_BASE || LOCAL_BACKEND_BASE;
-export const CUSTOMER_PORTAL_API_BASE = `${BACKEND_BASE}/api/customers/portal`;
+  isProduction ? process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE : process.env.NEXT_PUBLIC_BACKEND_BASE || LOCAL_BACKEND_BASE;
+
+const STAFF_API_BASE = isProduction ? "" : BACKEND_BASE;
 
 export function apiPath(path: string) {
-  return `${BACKEND_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${STAFF_API_BASE}${normalizedPath}`;
 }
 
+export const CUSTOMER_PORTAL_API_BASE = apiPath("/api/customers/portal");
+
 export function toBackendUrl(url: string) {
-  if (url.startsWith(LOCAL_BACKEND_BASE)) {
-    return `${BACKEND_BASE}${url.slice(LOCAL_BACKEND_BASE.length)}` || url;
-  }
+  const rewriteLocalUrl = (base: string) => {
+    if (!url.startsWith(base)) return null;
+    const path = url.slice(base.length) || "/";
+    return isProduction ? path : `${BACKEND_BASE}${path}`;
+  };
 
-  if (url.startsWith(LOCALHOST_BACKEND_BASE)) {
-    return `${BACKEND_BASE}${url.slice(LOCALHOST_BACKEND_BASE.length)}` || url;
-  }
-
-  return url;
+  return rewriteLocalUrl(LOCAL_BACKEND_BASE) ?? rewriteLocalUrl(LOCALHOST_BACKEND_BASE) ?? url;
 }
 
 export async function readApiPayload(response: Response, fallbackMessage: string) {
@@ -31,7 +32,11 @@ export async function readApiPayload(response: Response, fallbackMessage: string
   }
 
   const text = await response.text().catch(() => "");
-  throw new Error(text.trim() || fallbackMessage);
+  const trimmedText = text.trim();
+  if (trimmedText.toLowerCase().startsWith("<!doctype") || trimmedText.toLowerCase().startsWith("<html")) {
+    throw new Error(fallbackMessage);
+  }
+  throw new Error(trimmedText || fallbackMessage);
 }
 
 export function friendlyApiError(error: unknown) {
