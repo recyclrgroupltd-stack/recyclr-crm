@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiPath, friendlyApiError, readApiPayload } from "@/lib/apiBase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+      const response = await fetch(apiPath("/api/auth/login/"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -28,7 +29,7 @@ export default function LoginPage() {
         }),
       });
 
-      const data = await response.json();
+      const data = await readApiPayload(response, "Login failed.");
 
       if (!response.ok || !data.success) {
         setError(data.message || "Login failed.");
@@ -39,7 +40,7 @@ export default function LoginPage() {
       localStorage.setItem("recyclrUser", JSON.stringify(data.user));
       router.push("/dashboard");
     } catch (err) {
-      setError("Could not connect to the backend.");
+      setError(friendlyApiError(err));
       setLoading(false);
       return;
     }
