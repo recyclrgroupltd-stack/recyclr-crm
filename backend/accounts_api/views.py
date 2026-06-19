@@ -272,7 +272,9 @@ def login_view(request):
     username = request.data.get("username", "").strip()
     password = request.data.get("password", "")
 
-    user = authenticate(username=username, password=password)
+    staff_user = get_request_user_from_username(username)
+    auth_username = staff_user.username if staff_user else username
+    user = authenticate(username=auth_username, password=password)
 
     if user is None:
         return Response(

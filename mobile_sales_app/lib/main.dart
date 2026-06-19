@@ -126,6 +126,7 @@ class StaffSession {
 
   Map<String, String> get jsonHeaders => {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
     'X-Staff-Username': username,
   };
 
@@ -175,15 +176,37 @@ class _LoginPageState extends State<LoginPage> {
       );
       final response = await http.post(
         Uri.parse('$backendUrl/api/auth/login/'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({
           'username': usernameController.text.trim(),
           'password': passwordController.text,
         }),
       );
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      Map<String, dynamic> data = {};
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {}
+
       if (response.statusCode >= 400 || data['success'] != true) {
-        throw Exception(data['message'] ?? 'Could not log in.');
+        final serverMessage = data['message']?.toString().trim();
+        if (serverMessage != null && serverMessage.isNotEmpty) {
+          throw Exception(serverMessage);
+        }
+        final bodyPreview = response.body.trim().replaceAll(
+          RegExp(r'\s+'),
+          ' ',
+        );
+        final preview = bodyPreview.length > 140
+            ? bodyPreview.substring(0, 140)
+            : bodyPreview;
+        throw Exception('Backend returned ${response.statusCode}. $preview');
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -198,9 +221,15 @@ class _LoginPageState extends State<LoginPage> {
         StaffSession(username: username, role: role, backendUrl: backendUrl),
       );
     } catch (err) {
+      var message = err.toString().replaceFirst('Exception: ', '');
+      final lowerMessage = message.toLowerCase();
+      if (lowerMessage.contains('<html') ||
+          lowerMessage.contains('<!doctype')) {
+        message =
+            'The backend returned a server error. Please try again after the latest deploy.';
+      }
       setState(() {
-        error =
-            'Could not connect or log in. Check the backend URL, Wi-Fi, and staff details.';
+        error = message;
       });
     } finally {
       if (mounted) setState(() => saving = false);
