@@ -1,4 +1,4 @@
-package uk.co.recyclrgroup.mobile_sales_app
+package uk.co.recyclrgroup.crm
 
 import io.flutter.embedding.android.FlutterActivity
 
