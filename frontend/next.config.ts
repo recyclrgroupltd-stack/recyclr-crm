@@ -6,6 +6,7 @@ const backendBase =
     : process.env.NEXT_PUBLIC_BACKEND_BASE || "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  skipTrailingSlashRedirect: true,
   async rewrites() {
     return [
       {
