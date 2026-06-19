@@ -3,6 +3,36 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+class AddFieldIfNotExists(migrations.AddField):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        table_name = model._meta.db_table
+
+        with schema_editor.connection.cursor() as cursor:
+            columns = {
+                column.name
+                for column in schema_editor.connection.introspection.get_table_description(cursor, table_name)
+            }
+
+        if self.name in columns:
+            return
+
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
+class CreateModelIfNotExists(migrations.CreateModel):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.name)
+
+        with schema_editor.connection.cursor() as cursor:
+            tables = schema_editor.connection.introspection.table_names(cursor)
+
+        if model._meta.db_table in tables:
+            return
+
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -11,17 +41,17 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        AddFieldIfNotExists(
             model_name="purchaseorder",
             name="approval_note",
             field=models.TextField(blank=True),
         ),
-        migrations.AddField(
+        AddFieldIfNotExists(
             model_name="purchaseorder",
             name="approved_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
-        migrations.AddField(
+        AddFieldIfNotExists(
             model_name="purchaseorder",
             name="approved_by",
             field=models.CharField(blank=True, max_length=255),
@@ -42,7 +72,7 @@ class Migration(migrations.Migration):
                 max_length=20,
             ),
         ),
-        migrations.CreateModel(
+        CreateModelIfNotExists(
             name="StaffNotification",
             fields=[
                 ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
