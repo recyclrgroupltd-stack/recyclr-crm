@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const backendBase =
   process.env.NODE_ENV === "production"
-    ? ""
+    ? process.env.NEXT_PUBLIC_BACKEND_BASE || "https://recyclr-crm-backend.onrender.com"
     : process.env.NEXT_PUBLIC_BACKEND_BASE || "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
