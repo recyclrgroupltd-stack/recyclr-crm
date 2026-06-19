@@ -52,7 +52,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-white/20 bg-white/10 p-10 shadow-xl backdrop-blur-lg">
         <div className="mb-8 flex flex-col items-center">
           <img
-            src="/recyclr-logo.png"
+            src="/recyclrcore-logo.png"
             alt="Recyclr Core"
             className="mb-6 w-72"
           />
