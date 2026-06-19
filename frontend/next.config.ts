@@ -11,11 +11,11 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/auth/login",
-        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login",
+        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login/",
       },
       {
         source: "/api/auth/login/",
-        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login",
+        destination: "https://recyclr-crm-backend.onrender.com/api/auth/login/",
       },
       {
         source: "/api/:path*",
