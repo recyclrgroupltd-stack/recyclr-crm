@@ -6,7 +6,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export const BACKEND_BASE =
   isProduction ? process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE : process.env.NEXT_PUBLIC_BACKEND_BASE || LOCAL_BACKEND_BASE;
 
-const STAFF_API_BASE = isProduction ? "" : BACKEND_BASE;
+const STAFF_API_BASE = BACKEND_BASE;
 
 export function apiPath(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
@@ -16,11 +16,22 @@ export function apiPath(path: string) {
 export const CUSTOMER_PORTAL_API_BASE = apiPath("/api/customers/portal");
 
 export function toBackendUrl(url: string) {
+  if (url.startsWith("/api/")) {
+    return `${BACKEND_BASE}${url}`;
+  }
+
   const rewriteLocalUrl = (base: string) => {
     if (!url.startsWith(base)) return null;
     const path = url.slice(base.length) || "/";
-    return isProduction ? path : `${BACKEND_BASE}${path}`;
+    return `${BACKEND_BASE}${path}`;
   };
+
+  if (typeof window !== "undefined") {
+    const currentOrigin = window.location.origin;
+    if (url.startsWith(`${currentOrigin}/api/`)) {
+      return `${BACKEND_BASE}${url.slice(currentOrigin.length)}`;
+    }
+  }
 
   return rewriteLocalUrl(LOCAL_BACKEND_BASE) ?? rewriteLocalUrl(LOCALHOST_BACKEND_BASE) ?? url;
 }
