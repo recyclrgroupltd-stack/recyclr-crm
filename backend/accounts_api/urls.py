@@ -11,6 +11,7 @@ from .views import (
     staff_list_view,
     update_staff_profile_admin_view,
     update_staff_permission_override_view,
+    update_staff_active_view,
     update_staff_role_view,
 )
 
@@ -31,6 +32,7 @@ urlpatterns = [
         name="api-staff-mailbox-generate-password",
     ),
     path("staff/<int:user_id>/role/", update_staff_role_view, name="api-staff-role-update"),
+    path("staff/<int:user_id>/active/", update_staff_active_view, name="api-staff-active-update"),
     path(
         "staff/<int:user_id>/permissions/override/",
         update_staff_permission_override_view,

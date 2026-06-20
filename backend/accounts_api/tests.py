@@ -77,8 +77,29 @@ class EnsureStaffUserTests(TestCase):
         self.assertEqual(existing_user.email, "jay.gallagher@recyclrgroup.co.uk")
         self.assertTrue(existing_user.is_staff)
         self.assertTrue(existing_user.is_superuser)
-        self.assertTrue(existing_user.check_password("Password123@"))
+        self.assertTrue(existing_user.check_password("OldPassword123@"))
         self.assertEqual(existing_user.staff_profile.job_title, "Founder")
+
+    def test_command_can_intentionally_reset_existing_password(self):
+        User = get_user_model()
+        existing_user = User.objects.create_user(
+            username="Jay.Gallagher",
+            email="jay.gallagher@recyclrgroup.co.uk",
+            password="OldPassword123@",
+        )
+
+        call_command(
+            "ensure_staff_user",
+            username="Jay.Gallagher",
+            password="Password123@",
+            email="jay.gallagher@recyclrgroup.co.uk",
+            role="admin",
+            superuser=True,
+            reset_password=True,
+        )
+
+        existing_user.refresh_from_db()
+        self.assertTrue(existing_user.check_password("Password123@"))
 
 
 class CreateStaffUserTests(TestCase):
@@ -116,3 +137,24 @@ class CreateStaffUserTests(TestCase):
         self.assertFalse(created_user.is_superuser)
         self.assertTrue(created_user.check_password("TempPass123@"))
         self.assertEqual(created_user.staff_profile.job_title, "Driver")
+
+    def test_admin_can_deactivate_staff_user(self):
+        target_user = get_user_model().objects.create_user(
+            username="Admin",
+            email="admin@recyclrgroup.co.uk",
+            password="AdminPass123@",
+            is_staff=True,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            f"/api/auth/staff/{target_user.id}/active/",
+            {"is_active": False},
+            format="json",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        target_user.refresh_from_db()
+        self.assertFalse(target_user.is_active)

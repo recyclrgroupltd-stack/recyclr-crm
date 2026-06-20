@@ -106,6 +106,11 @@ class Command(BaseCommand):
         parser.add_argument("--mailbox-password", default="")
         parser.add_argument("--job-title", default="")
         parser.add_argument("--phone", default="")
+        parser.add_argument(
+            "--reset-password",
+            action="store_true",
+            help="Reset the password for an existing user. New users always get the provided password.",
+        )
 
     def handle(self, *args, **options):
         username = (options["username"] or "").strip()
@@ -140,7 +145,15 @@ class Command(BaseCommand):
             else:
                 user.username = username
 
-        user.set_password(password)
+        if created or options["reset_password"]:
+            user.set_password(password)
+        else:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Existing user matched; password was not changed. "
+                    "Use --reset-password if you intentionally want to reset it."
+                )
+            )
         user.email = email
         if options["first_name"]:
             user.first_name = options["first_name"].strip()

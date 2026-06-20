@@ -289,6 +289,43 @@ export default function StaffPage() {
     }
   }
 
+  async function updateActiveStatus(userId: number, isActive: boolean) {
+    setSavingUserId(userId);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(apiPath(`/api/auth/staff/${userId}/active/`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ is_active: isActive }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update staff status.");
+      }
+
+      setStaff((prev) =>
+        prev.map((user) => (user.id === userId ? data.user : user))
+      );
+
+      setMessage(data.message || "Staff status updated.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Could not update staff status.");
+      }
+    } finally {
+      setSavingUserId(null);
+    }
+  }
+
   async function updatePermissionOverride(
     userId: number,
     permissionKey: string,
@@ -883,6 +920,28 @@ export default function StaffPage() {
                             </option>
                           ))}
                         </select>
+                        <div className="rounded-lg border border-violet-100 bg-white p-4 lg:col-span-2">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <div className="text-sm font-black text-slate-950">Account Status</div>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Deactivate temporary or leaver accounts without deleting their history.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => updateActiveStatus(user.id, !user.is_active)}
+                              disabled={savingUserId === user.id}
+                              className={`rounded-lg px-4 py-3 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                                user.is_active
+                                  ? "bg-red-600 hover:bg-red-700"
+                                  : "bg-emerald-600 hover:bg-emerald-700"
+                              }`}
+                            >
+                              {user.is_active ? "Deactivate Account" : "Reactivate Account"}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       ) : null}
                     </div>

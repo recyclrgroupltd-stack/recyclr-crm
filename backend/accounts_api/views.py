@@ -703,6 +703,41 @@ def update_staff_role_view(request, user_id):
 
 
 @api_view(["POST"])
+def update_staff_active_view(request, user_id):
+    acting_user, error_response = require_admin(request)
+    if error_response:
+        return error_response
+
+    is_active = bool(request.data.get("is_active", True))
+
+    try:
+        target_user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user_id, is_staff=True)
+    except User.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Staff user not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if target_user.id == acting_user.id and not is_active:
+        return Response(
+            {"success": False, "message": "You cannot deactivate your own account while signed in."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    target_user.is_active = is_active
+    target_user.save(update_fields=["is_active"])
+    target_user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=target_user.pk)
+
+    return Response(
+        {
+            "success": True,
+            "message": f"{target_user.username} is now {'active' if is_active else 'inactive'}.",
+            "user": serialize_user(target_user),
+        }
+    )
+
+
+@api_view(["POST"])
 def update_staff_permission_override_view(request, user_id):
     _, error_response = require_admin(request)
     if error_response:
