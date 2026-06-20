@@ -40,7 +40,11 @@ export default function LoginPage() {
       const returnedUser = data.user || {};
       const resolvedUsername = data.username || returnedUser.username || username;
       const resolvedRole = data.role || returnedUser.role || "staff";
-      const resolvedToken = data.token || "staff-session-active";
+      const resolvedToken = data.token || "";
+
+      if (!resolvedToken) {
+        throw new Error("Login did not return a secure staff token.");
+      }
 
       const storedUser = {
         id: returnedUser.id || 0,

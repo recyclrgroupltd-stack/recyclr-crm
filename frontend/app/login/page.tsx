@@ -68,8 +68,11 @@ export default function LoginPage() {
         "staff";
 
       const resolvedToken =
-        data.token ||
-        "staff-session-active";
+        data.token || "";
+
+      if (!resolvedToken) {
+        throw new Error("Login did not return a secure staff token.");
+      }
 
       const storedUser = {
         id: returnedUser.id || 0,

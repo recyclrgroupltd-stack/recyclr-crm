@@ -110,13 +110,15 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
       ? ""
       : localStorage.getItem("staff_username") || localStorage.getItem("username") || "";
   const username = user?.username || fallbackUsername;
+  const token = typeof window === "undefined" ? "" : localStorage.getItem("staff_token") || "";
 
-  if (!username) {
+  if (!username && !token) {
     return extraHeaders || {};
   }
 
   return {
-    "X-Staff-Username": username,
+    ...(token ? { Authorization: `Bearer ${token}`, "X-Staff-Token": token } : {}),
+    ...(username ? { "X-Staff-Username": username } : {}),
     ...(extraHeaders || {}),
   };
 }

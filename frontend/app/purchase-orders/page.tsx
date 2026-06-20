@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import StaffShell from "@/components/StaffShell";
+import { getAuthHeaders } from "@/lib/auth";
 
 type Supplier = {
   id: number;
@@ -396,23 +397,12 @@ export default function PurchaseOrdersPage() {
   const isApprover = isApproverRole(staffRole);
 
   function buildHeaders() {
-    return {
-      "Content-Type": "application/json",
-      "X-Staff-Username":
-        window.localStorage.getItem("staff_username") ||
-        window.localStorage.getItem("username") ||
-        "",
-    };
+    return getAuthHeaders({ "Content-Type": "application/json" });
   }
 
   async function loadSuppliers() {
     const response = await fetch("http://127.0.0.1:8000/api/purchase-orders/suppliers/", {
-      headers: {
-        "X-Staff-Username":
-          window.localStorage.getItem("staff_username") ||
-          window.localStorage.getItem("username") ||
-          "",
-      },
+      headers: getAuthHeaders(),
     });
     const data = await response.json();
     setSuppliers(Array.isArray(data) ? data : []);
@@ -428,12 +418,7 @@ export default function PurchaseOrdersPage() {
     const url = `http://127.0.0.1:8000/api/purchase-orders/${params.toString() ? `?${params.toString()}` : ""}`;
 
     const response = await fetch(url, {
-      headers: {
-        "X-Staff-Username":
-          window.localStorage.getItem("staff_username") ||
-          window.localStorage.getItem("username") ||
-          "",
-      },
+      headers: getAuthHeaders(),
     });
 
     const data = await response.json();
@@ -784,12 +769,7 @@ export default function PurchaseOrdersPage() {
         `http://127.0.0.1:8000/api/purchase-orders/${receivedModal.order.id}/`,
         {
           method: "POST",
-          headers: {
-            "X-Staff-Username":
-              window.localStorage.getItem("staff_username") ||
-              window.localStorage.getItem("username") ||
-              "",
-          },
+          headers: getAuthHeaders(),
           body: formData,
         }
       );
@@ -820,12 +800,7 @@ export default function PurchaseOrdersPage() {
 
       const response = await fetch(`http://127.0.0.1:8000/api/purchase-orders/${orderId}/`, {
         method: "DELETE",
-        headers: {
-          "X-Staff-Username":
-            window.localStorage.getItem("staff_username") ||
-            window.localStorage.getItem("username") ||
-            "",
-        },
+        headers: getAuthHeaders(),
       });
 
       const data = await response.json();

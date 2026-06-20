@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "@/components/StaffShell";
+import { getAuthHeaders } from "@/lib/auth";
 
 type ContainerRow = {
   id: number;
@@ -32,12 +33,7 @@ type MaintenanceEvent = {
 };
 
 function authHeaders() {
-  return {
-    "X-Staff-Username":
-      window.localStorage.getItem("staff_username") ||
-      window.localStorage.getItem("username") ||
-      "",
-  };
+  return getAuthHeaders();
 }
 
 function formatDate(value: string) {

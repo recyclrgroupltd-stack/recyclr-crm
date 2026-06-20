@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StaffShell from "@/components/StaffShell";
+import { getAuthHeaders } from "@/lib/auth";
 import { getWasteStreamStyle } from "@/lib/wasteStreams";
 
 type Choice = {
@@ -65,12 +66,7 @@ const emptyBatch = {
 };
 
 function authHeaders() {
-  return {
-    "X-Staff-Username":
-      window.localStorage.getItem("staff_username") ||
-      window.localStorage.getItem("username") ||
-      "",
-  };
+  return getAuthHeaders();
 }
 
 function StatusPill({ status, label }: { status: string; label: string }) {

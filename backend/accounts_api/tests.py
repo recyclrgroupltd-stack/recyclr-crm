@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from .models import StaffProfile
+from .views import create_staff_auth_token
 
 
 class StaffLoginTests(TestCase):
@@ -48,6 +49,26 @@ class StaffLoginTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["success"])
         self.assertEqual(response.data["username"], "Jay.Gallagher")
+
+    @override_settings(DEBUG=False)
+    def test_production_staff_api_requires_signed_token(self):
+        header_only_response = self.client.get(
+            "/api/auth/profile/me/",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(header_only_response.status_code, 401)
+
+        login_response = self.post_login("Jay.Gallagher")
+        token = login_response.data["token"]
+
+        token_response = self.client.get(
+            "/api/auth/profile/me/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(token_response.status_code, 200)
+        self.assertEqual(token_response.data["user"]["username"], "Jay.Gallagher")
 
 
 class EnsureStaffUserTests(TestCase):
@@ -111,6 +132,9 @@ class CreateStaffUserTests(TestCase):
             password="Password123@",
             is_staff=True,
         )
+        self.auth_headers = {
+            "HTTP_AUTHORIZATION": f"Bearer {create_staff_auth_token(self.admin)}",
+        }
 
     def test_admin_can_create_staff_user(self):
         response = self.client.post(
@@ -126,7 +150,7 @@ class CreateStaffUserTests(TestCase):
                 "company_phone": "07000000000",
             },
             format="json",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 201)
@@ -150,7 +174,7 @@ class CreateStaffUserTests(TestCase):
                 "role": "admin",
             },
             format="json",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 201)
@@ -174,7 +198,7 @@ class CreateStaffUserTests(TestCase):
             f"/api/auth/staff/{target_user.id}/active/",
             {"is_active": False},
             format="json",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -195,7 +219,7 @@ class CreateStaffUserTests(TestCase):
             f"/api/auth/staff/{target_user.id}/password/",
             {"password": "NewPass123@"},
             format="json",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -208,7 +232,7 @@ class CreateStaffUserTests(TestCase):
             f"/api/auth/staff/{self.admin.id}/password/",
             {"password": "NewOwnerPass123@"},
             format="json",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -227,7 +251,7 @@ class CreateStaffUserTests(TestCase):
 
         response = self.client.delete(
             f"/api/auth/staff/{target_user.id}/delete/",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -240,7 +264,7 @@ class CreateStaffUserTests(TestCase):
 
         list_response = self.client.get(
             "/api/auth/staff/",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            **self.auth_headers,
         )
         self.assertEqual(list_response.status_code, 200)
         self.assertNotIn(target_user.id, [user["id"] for user in list_response.data["staff"]])

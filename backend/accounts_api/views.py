@@ -3,8 +3,10 @@ import logging
 import secrets
 import string
 
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.core import signing
 from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
@@ -22,6 +24,8 @@ from .permissions import (
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+STAFF_AUTH_TOKEN_SALT = "recyclr-core-staff-auth"
+STAFF_AUTH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 12
 
 ROLE_TO_GROUP = {
     "admin": "Admin",
@@ -284,7 +288,46 @@ def get_request_user_from_username(username):
     return None
 
 
+def create_staff_auth_token(user):
+    return signing.dumps({"user_id": user.pk}, salt=STAFF_AUTH_TOKEN_SALT, compress=True)
+
+
+def get_request_user_from_token(token):
+    if not token:
+        return None
+
+    try:
+        payload = signing.loads(token, salt=STAFF_AUTH_TOKEN_SALT, max_age=STAFF_AUTH_TOKEN_MAX_AGE_SECONDS)
+    except signing.BadSignature:
+        return None
+
+    user_id = payload.get("user_id")
+    if not user_id:
+        return None
+
+    try:
+        return (
+            User.objects.filter(pk=user_id, is_staff=True, is_active=True)
+            .prefetch_related("groups", "permission_overrides")
+            .get()
+        )
+    except User.DoesNotExist:
+        return None
+
+
 def get_request_user_from_request(request):
+    auth_header = request.headers.get("Authorization", "").strip()
+    token = request.headers.get("X-Staff-Token", "").strip()
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+
+    token_user = get_request_user_from_token(token)
+    if token_user:
+        return token_user
+
+    if not settings.DEBUG:
+        return None
+
     username = request.headers.get("X-Staff-Username", "").strip()
     return get_request_user_from_username(username)
 
@@ -359,7 +402,7 @@ def login_view(request):
         {
             "success": True,
             "message": "Login successful.",
-            "token": "staff-session-active",
+            "token": create_staff_auth_token(user),
             "username": user_data["username"],
             "role": user_data["role"],
             "permissions": user_data["permissions"],

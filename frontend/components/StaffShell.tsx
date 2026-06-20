@@ -434,12 +434,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const headers = {
-        "X-Staff-Username":
-          window.localStorage.getItem("staff_username") ||
-          window.localStorage.getItem("username") ||
-          "",
-      };
+      const headers = getAuthHeaders();
       const [response, calendarResponse] = await Promise.all([
         fetch("http://127.0.0.1:8000/api/purchase-orders/notifications/", { headers }),
         fetch("http://127.0.0.1:8000/api/staff-calendar/summary/", { headers }),
@@ -459,12 +454,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
   }, []);
 
   const staffHeader = useCallback(
-    () => ({
-      "X-Staff-Username":
-        window.localStorage.getItem("staff_username") ||
-        window.localStorage.getItem("username") ||
-        "",
-    }),
+    () => getAuthHeaders(),
     []
   );
 
@@ -794,12 +784,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     try {
       await fetch(`http://127.0.0.1:8000/api/purchase-orders/notifications/${notificationId}/read/`, {
         method: "POST",
-        headers: {
-          "X-Staff-Username":
-            window.localStorage.getItem("staff_username") ||
-            window.localStorage.getItem("username") ||
-            "",
-        },
+        headers: getAuthHeaders(),
       });
       await loadNotifications();
     } catch (error) {
@@ -811,12 +796,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     try {
       await fetch("http://127.0.0.1:8000/api/purchase-orders/notifications/mark-all-read/", {
         method: "POST",
-        headers: {
-          "X-Staff-Username":
-            window.localStorage.getItem("staff_username") ||
-            window.localStorage.getItem("username") ||
-            "",
-        },
+        headers: getAuthHeaders(),
       });
       await loadNotifications();
     } catch (error) {

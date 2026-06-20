@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import StaffShell from "../../../components/StaffShell";
+import { getAuthHeaders } from "../../../lib/auth";
 
 type CustomerOption = {
   id: number;
@@ -110,12 +111,7 @@ export default function NewServicePage() {
     async function loadOptions() {
       try {
         const response = await fetch("http://127.0.0.1:8000/api/services/create/options/", {
-          headers: {
-            "X-Staff-Username":
-              window.localStorage.getItem("staff_username") ||
-              window.localStorage.getItem("username") ||
-              "",
-          },
+          headers: getAuthHeaders(),
         });
 
         const data = await response.json();
@@ -220,13 +216,7 @@ export default function NewServicePage() {
     try {
       const response = await fetch("http://127.0.0.1:8000/api/services/create/", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Staff-Username":
-            window.localStorage.getItem("staff_username") ||
-            window.localStorage.getItem("username") ||
-            "",
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(form),
       });
 

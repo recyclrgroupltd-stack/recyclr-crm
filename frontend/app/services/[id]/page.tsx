@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import StaffShell from "../../../components/StaffShell";
+import { getAuthHeaders } from "../../../lib/auth";
 
 type SiteOption = {
   id: number;
@@ -113,28 +114,13 @@ export default function ServiceDetailPage() {
         setError("");
         const [serviceResponse, setupResponse, createOptionsResponse] = await Promise.all([
           fetch(`http://127.0.0.1:8000/api/services/${serviceId}/`, {
-            headers: {
-              "X-Staff-Username":
-                window.localStorage.getItem("staff_username") ||
-                window.localStorage.getItem("username") ||
-                "",
-            },
+            headers: getAuthHeaders(),
           }),
           fetch("http://127.0.0.1:8000/api/services/setup-options/", {
-            headers: {
-              "X-Staff-Username":
-                window.localStorage.getItem("staff_username") ||
-                window.localStorage.getItem("username") ||
-                "",
-            },
+            headers: getAuthHeaders(),
           }),
           fetch("http://127.0.0.1:8000/api/services/create/options/", {
-            headers: {
-              "X-Staff-Username":
-                window.localStorage.getItem("staff_username") ||
-                window.localStorage.getItem("username") ||
-                "",
-            },
+            headers: getAuthHeaders(),
           }),
         ]);
 
@@ -256,13 +242,7 @@ export default function ServiceDetailPage() {
     try {
       const response = await fetch(`http://127.0.0.1:8000/api/services/${serviceId}/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Staff-Username":
-            window.localStorage.getItem("staff_username") ||
-            window.localStorage.getItem("username") ||
-            "",
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           ...form,
           start_date: form.schedule_start_date || null,
