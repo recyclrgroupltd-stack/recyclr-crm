@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "../../components/StaffShell";
 import { getAuthHeaders, getStoredUser } from "../../lib/auth";
+import { apiPath } from "../../lib/apiBase";
 import { getWasteStreamStyle, wasteStreamSortOrder } from "../../lib/wasteStreams";
 
 type DashboardOverview = {
@@ -267,7 +268,7 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError("");
-        const response = await fetch("http://127.0.0.1:8000/api/dashboard/overview/", {
+        const response = await fetch(apiPath("/api/dashboard/overview/"), {
           headers: getAuthHeaders(),
         });
         const result = await response.json();
