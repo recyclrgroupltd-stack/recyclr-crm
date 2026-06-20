@@ -195,22 +195,6 @@ def get_active_staff_session(user):
     )
 
 
-def get_or_create_request_staff_session(user, request):
-    token = request.headers.get("X-Staff-Session-Token", "").strip()
-    device_name = clean_device_name(request.headers.get("X-Staff-Device-Name", ""))
-
-    if token and token != "staff-session-active":
-        session = StaffSession.objects.filter(token=token, user=user).first()
-        if session:
-            return session, False
-
-    active_session = get_active_staff_session(user)
-    if active_session:
-        return active_session, False
-
-    return create_staff_session(user, request, device_name), True
-
-
 def serialize_user(user):
     role = get_staff_role(user)
     merged_permission_map = get_merged_permission_map_for_user(user)
@@ -341,7 +325,7 @@ def require_authenticated_staff_user(request):
         return None, permission_denied_response("Please sign in again.", status.HTTP_401_UNAUTHORIZED)
 
     token = request.headers.get("X-Staff-Session-Token", "").strip()
-    if token and token != "staff-session-active":
+    if token:
         session = StaffSession.objects.filter(token=token, user=user).first()
         if not session:
             return None, permission_denied_response("Please sign in again.", status.HTTP_401_UNAUTHORIZED)
@@ -358,21 +342,6 @@ def require_authenticated_staff_user(request):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        session.last_seen_at = timezone.now()
-        session.save(update_fields=["last_seen_at"])
-    else:
-        session, _ = get_or_create_request_staff_session(user, request)
-        if not session.is_active:
-            next_device = session.replaced_by_device_name or "another device"
-            return None, Response(
-                {
-                    "success": False,
-                    "code": "session_replaced",
-                    "message": f"You were relogged into {next_device} and have been logged out of this device.",
-                    "device_name": next_device,
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
         session.last_seen_at = timezone.now()
         session.save(update_fields=["last_seen_at"])
 
@@ -478,36 +447,6 @@ def logout_view(request):
             ended_at=timezone.now(),
         )
     return Response({"success": True, "message": "Logged out."})
-
-
-@api_view(["POST"])
-def staff_session_view(request):
-    user = get_request_user_from_request(request)
-    if not user:
-        return permission_denied_response("Please sign in again.", status.HTTP_401_UNAUTHORIZED)
-
-    session, _ = get_or_create_request_staff_session(user, request)
-    if not session.is_active:
-        next_device = session.replaced_by_device_name or "another device"
-        return Response(
-            {
-                "success": False,
-                "code": "session_replaced",
-                "message": f"You were relogged into {next_device} and have been logged out of this device.",
-                "device_name": next_device,
-            },
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    session.last_seen_at = timezone.now()
-    session.save(update_fields=["last_seen_at"])
-    return Response(
-        {
-            "success": True,
-            "token": session.token,
-            "device_name": session.device_name,
-        }
-    )
 
 
 @api_view(["POST"])
