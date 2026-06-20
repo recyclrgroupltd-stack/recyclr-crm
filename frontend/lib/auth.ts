@@ -107,6 +107,8 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
       ? ""
       : localStorage.getItem("staff_username") || localStorage.getItem("username") || "";
   const username = user?.username || fallbackUsername;
+  const sessionToken =
+    typeof window === "undefined" ? "" : localStorage.getItem("staff_token") || "";
 
   if (!username) {
     return extraHeaders || {};
@@ -114,6 +116,7 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
 
   return {
     "X-Staff-Username": username,
+    ...(sessionToken ? { "X-Staff-Session-Token": sessionToken } : {}),
     ...(extraHeaders || {}),
   };
 }

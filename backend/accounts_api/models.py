@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class UserPermissionOverride(models.Model):
@@ -20,6 +21,30 @@ class UserPermissionOverride(models.Model):
     def __str__(self):
         state = "allow" if self.is_allowed else "deny"
         return f"{self.user.username} - {self.permission_key} ({state})"
+
+
+class StaffSession(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="staff_sessions",
+    )
+    token = models.CharField(max_length=128, unique=True)
+    device_name = models.CharField(max_length=200, blank=True)
+    user_agent = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    replaced_by_device_name = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+
+    def __str__(self):
+        state = "active" if self.is_active else "ended"
+        return f"{self.user.username} on {self.device_name or 'Unknown device'} ({state})"
 
 
 class StaffProfile(models.Model):

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { KeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiPath } from "../lib/apiBase";
 import {
   canManageUsers,
   canViewCustomers,
@@ -434,22 +435,27 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const headers = {
-        "X-Staff-Username":
-          window.localStorage.getItem("staff_username") ||
-          window.localStorage.getItem("username") ||
-          "",
-      };
+      const headers = staffHeader();
       const [response, calendarResponse] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/purchase-orders/notifications/", { headers }),
-        fetch("http://127.0.0.1:8000/api/staff-calendar/summary/", { headers }),
+        fetch(apiPath("/api/purchase-orders/notifications/"), { headers }),
+        fetch(apiPath("/api/staff-calendar/summary/"), { headers }),
       ]);
       const data = await response.json();
+      if (response.status === 401 && data.code === "session_replaced") {
+        alert(data.message || "You were logged out because this user logged in on another device.");
+        logout();
+        return;
+      }
       if (response.ok && data.success) {
         setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
         setUnreadCount(Number(data.unread_count || 0));
       }
       const calendarData = await calendarResponse.json();
+      if (calendarResponse.status === 401 && calendarData.code === "session_replaced") {
+        alert(calendarData.message || "You were logged out because this user logged in on another device.");
+        logout();
+        return;
+      }
       if (calendarResponse.ok && calendarData.success) {
         setCalendarRequestCount(Number(calendarData.pending_request_count || 0));
       }
@@ -464,6 +470,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         window.localStorage.getItem("staff_username") ||
         window.localStorage.getItem("username") ||
         "",
+      "X-Staff-Session-Token": window.localStorage.getItem("staff_token") || "",
     }),
     []
   );
@@ -852,6 +859,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     window.localStorage.removeItem("staff_username");
     window.localStorage.removeItem("username");
     window.localStorage.removeItem("staff_role");
+    window.localStorage.removeItem("staff_device_name");
     window.localStorage.removeItem("recyclrUser");
     router.replace("/login");
   }
