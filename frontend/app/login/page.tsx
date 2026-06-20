@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath, friendlyApiError, readApiPayload } from "@/lib/apiBase";
+import { clearStaffSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +20,12 @@ export default function LoginPage() {
       window.localStorage.getItem("staff_username") ||
       window.localStorage.getItem("username") ||
       "";
+
+    if (storedToken === "staff-session-active") {
+      clearStaffSession();
+      setAuthResolved(true);
+      return;
+    }
 
     if (storedToken && storedUsername.trim()) {
       router.replace("/dashboard");

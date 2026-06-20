@@ -103,6 +103,15 @@ export function setStoredUser(user: StoredUser) {
   localStorage.setItem("recyclrUser", JSON.stringify(user));
 }
 
+export function clearStaffSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("staff_token");
+  localStorage.removeItem("staff_username");
+  localStorage.removeItem("username");
+  localStorage.removeItem("staff_role");
+  localStorage.removeItem("recyclrUser");
+}
+
 export function getAuthHeaders(extraHeaders?: Record<string, string>) {
   const user = getStoredUser();
   const fallbackUsername =

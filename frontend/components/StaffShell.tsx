@@ -17,6 +17,7 @@ import {
   canViewSites,
   canViewStaff,
   canViewExpenses,
+  clearStaffSession,
   getAuthHeaders,
   getStoredUser,
   roleLabel,
@@ -422,7 +423,8 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         window.localStorage.getItem("staff_username") ||
         window.localStorage.getItem("username") ||
         "";
-      if (!storedToken || !storedUsername) {
+      if (!storedToken || storedToken === "staff-session-active" || !storedUsername) {
+        clearStaffSession();
         router.replace("/login");
         return;
       }

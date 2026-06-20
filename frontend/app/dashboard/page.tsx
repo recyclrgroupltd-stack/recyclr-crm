@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import StaffShell from "../../components/StaffShell";
-import { getAuthHeaders, getStoredUser } from "../../lib/auth";
+import { clearStaffSession, getAuthHeaders, getStoredUser } from "../../lib/auth";
 import { apiPath } from "../../lib/apiBase";
 import { getWasteStreamStyle, wasteStreamSortOrder } from "../../lib/wasteStreams";
 
@@ -258,6 +259,7 @@ function WasteDonut({ items, total }: { items: DashboardOverview["services_by_wa
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -272,6 +274,11 @@ export default function DashboardPage() {
           headers: getAuthHeaders(),
         });
         const result = await response.json();
+        if (response.status === 401) {
+          clearStaffSession();
+          router.replace("/login");
+          return;
+        }
         if (!response.ok) throw new Error(result.message || "Failed to load dashboard.");
         setData(result);
       } catch (err) {
@@ -282,7 +289,7 @@ export default function DashboardPage() {
       }
     }
     loadDashboard();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setCurrentTime(new Date()), 60000);

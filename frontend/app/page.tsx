@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPath, friendlyApiError, readApiPayload } from "@/lib/apiBase";
+import { clearStaffSession } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    clearStaffSession();
     setLoading(true);
     setError("");
 
