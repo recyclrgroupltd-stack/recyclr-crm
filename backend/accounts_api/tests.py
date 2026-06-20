@@ -196,4 +196,15 @@ class CreateStaffUserTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["success"])
-        self.assertFalse(get_user_model().objects.filter(pk=target_user.id).exists())
+        target_user.refresh_from_db()
+        self.assertFalse(target_user.is_staff)
+        self.assertFalse(target_user.is_active)
+        self.assertFalse(target_user.is_superuser)
+        self.assertTrue(target_user.username.startswith(f"deleted-{target_user.id}-"))
+
+        list_response = self.client.get(
+            "/api/auth/staff/",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn(target_user.id, [user["id"] for user in list_response.data["staff"]])

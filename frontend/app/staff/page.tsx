@@ -401,7 +401,7 @@ export default function StaffPage() {
   }
 
   async function deleteStaffUser(userId: number, username: string) {
-    const confirmed = window.confirm(`Permanently delete ${username}? This cannot be undone.`);
+    const confirmed = window.confirm(`Remove the staff login for ${username}? CRM history will be kept.`);
     if (!confirmed) return;
 
     setSavingUserId(userId);
@@ -417,7 +417,7 @@ export default function StaffPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to delete staff user.");
+        throw new Error(data.message || "Failed to remove staff login.");
       }
 
       setStaff((prev) => prev.filter((user) => user.id !== userId));
@@ -1139,9 +1139,9 @@ export default function StaffPage() {
                         <div className="rounded-lg border border-red-100 bg-red-50 p-4 lg:col-span-2">
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                              <div className="text-sm font-black text-red-950">Delete Staff User</div>
+                              <div className="text-sm font-black text-red-950">Remove Staff Login</div>
                               <p className="mt-1 text-xs font-semibold text-red-700">
-                                Permanently removes this login. Use deactivate when you need to keep history.
+                                Removes this login from Staff while keeping linked CRM history.
                               </p>
                             </div>
                             <button
@@ -1150,7 +1150,7 @@ export default function StaffPage() {
                               disabled={savingUserId === user.id}
                               className="rounded-lg bg-red-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              Delete User
+                              Remove Login
                             </button>
                           </div>
                         </div>

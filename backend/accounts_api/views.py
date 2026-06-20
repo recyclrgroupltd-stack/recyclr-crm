@@ -812,12 +812,23 @@ def delete_staff_user_view(request, user_id):
         )
 
     username = target_user.username
-    target_user.delete()
+    role_groups = list(Group.objects.filter(name__in=ALL_ROLE_GROUPS))
+    if role_groups:
+        target_user.groups.remove(*role_groups)
+
+    deleted_prefix = f"deleted-{target_user.id}-"
+    username_max_length = User._meta.get_field("username").max_length
+    target_user.username = f"{deleted_prefix}{username}"[:username_max_length]
+    target_user.email = ""
+    target_user.is_active = False
+    target_user.is_staff = False
+    target_user.is_superuser = False
+    target_user.save(update_fields=["username", "email", "is_active", "is_staff", "is_superuser"])
 
     return Response(
         {
             "success": True,
-            "message": f"Deleted staff user {username}.",
+            "message": f"Removed staff login for {username}.",
             "deleted_user_id": user_id,
         }
     )
