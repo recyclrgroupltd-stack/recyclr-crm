@@ -6,7 +6,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export const BACKEND_BASE =
   isProduction ? process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE : process.env.NEXT_PUBLIC_BACKEND_BASE || LOCAL_BACKEND_BASE;
 
-const STAFF_API_BASE = isProduction ? "" : BACKEND_BASE;
+const STAFF_API_BASE = BACKEND_BASE;
 
 export function apiPath(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
