@@ -112,6 +112,26 @@ class StaffLoginTests(TestCase):
         self.assertEqual(replaced_response.data["code"], "session_replaced")
         self.assertIn("Tablet", replaced_response.data["message"])
 
+    def test_logout_ends_staff_session(self):
+        login_response = self.client.post(
+            "/api/auth/login/",
+            {
+                "username": "Jay.Gallagher",
+                "password": "Password123@",
+                "device_name": "Chrome on desktop",
+            },
+            format="json",
+        )
+        token = login_response.data["token"]
+
+        logout_response = self.client.post(
+            "/api/auth/logout/",
+            HTTP_X_STAFF_SESSION_TOKEN=token,
+        )
+
+        self.assertEqual(logout_response.status_code, 200)
+        self.assertFalse(StaffSession.objects.get(token=token).is_active)
+
 
 class EnsureStaffUserTests(TestCase):
     def test_command_updates_matching_existing_user_instead_of_creating_duplicate(self):

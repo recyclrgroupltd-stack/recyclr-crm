@@ -854,7 +854,15 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     setNotificationsOpen(false);
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await fetch(apiPath("/api/auth/logout/"), {
+        method: "POST",
+        headers: staffHeader(),
+      });
+    } catch {
+      // Local logout should still complete if the backend is unavailable.
+    }
     window.localStorage.removeItem("staff_token");
     window.localStorage.removeItem("staff_username");
     window.localStorage.removeItem("username");

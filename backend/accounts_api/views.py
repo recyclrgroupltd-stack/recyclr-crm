@@ -439,6 +439,17 @@ def login_view(request):
 
 
 @api_view(["POST"])
+def logout_view(request):
+    token = request.headers.get("X-Staff-Session-Token", "").strip()
+    if token:
+        StaffSession.objects.filter(token=token, is_active=True).update(
+            is_active=False,
+            ended_at=timezone.now(),
+        )
+    return Response({"success": True, "message": "Logged out."})
+
+
+@api_view(["POST"])
 def change_password_view(request):
     username = request.data.get("username", "").strip()
     current_password = request.data.get("current_password", "")
