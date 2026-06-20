@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "../../components/StaffShell";
-import { apiPath, readApiPayload } from "../../lib/apiBase";
 import { getAuthHeaders, getStoredUser } from "../../lib/auth";
 import { getWasteStreamStyle, wasteStreamSortOrder } from "../../lib/wasteStreams";
 
@@ -268,26 +267,15 @@ export default function DashboardPage() {
       try {
         setLoading(true);
         setError("");
-        const response = await fetch(apiPath("/api/dashboard/overview/"), {
+        const response = await fetch("http://127.0.0.1:8000/api/dashboard/overview/", {
           headers: getAuthHeaders(),
         });
-        const result = await readApiPayload(response, "Failed to load dashboard.");
-        if (response.status === 401 && result.code === "session_replaced") {
-          alert(result.message || "You were logged out because this user logged in on another device.");
-          window.localStorage.removeItem("staff_token");
-          window.localStorage.removeItem("staff_username");
-          window.localStorage.removeItem("username");
-          window.localStorage.removeItem("staff_role");
-          window.localStorage.removeItem("staff_device_name");
-          window.localStorage.removeItem("recyclrUser");
-          window.location.href = "/login";
-          return;
-        }
+        const result = await response.json();
         if (!response.ok) throw new Error(result.message || "Failed to load dashboard.");
         setData(result);
       } catch (err) {
         console.error(err);
-        setError(err instanceof Error ? err.message : "Could not load dashboard data.");
+        setError("Could not load dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -569,5 +557,3 @@ export default function DashboardPage() {
     </StaffShell>
   );
 }
-
-
