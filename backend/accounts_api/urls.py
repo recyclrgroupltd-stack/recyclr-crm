@@ -6,7 +6,6 @@ from .views import (
     create_staff_user_view,
     generate_staff_mailbox_password_view,
     login_view,
-    logout_view,
     staff_profile_detail_view,
     staff_profile_me_view,
     staff_list_view,
@@ -18,7 +17,6 @@ from .views import (
 urlpatterns = [
     path("login", login_view, name="api-login-no-slash"),
     path("login/", login_view, name="api-login"),
-    path("logout/", logout_view, name="api-logout"),
     path("change-password/", change_password_view, name="api-change-password"),
     path("company-details/", company_details_view, name="api-company-details"),
     path("company-logo/", company_logo_view, name="api-company-logo"),
