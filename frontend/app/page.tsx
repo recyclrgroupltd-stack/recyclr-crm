@@ -37,8 +37,27 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem("recyclrUser", JSON.stringify(data.user));
-      router.push("/dashboard");
+      const returnedUser = data.user || {};
+      const resolvedUsername = data.username || returnedUser.username || username;
+      const resolvedRole = data.role || returnedUser.role || "staff";
+      const resolvedToken = data.token || "staff-session-active";
+
+      const storedUser = {
+        id: returnedUser.id || 0,
+        username: resolvedUsername,
+        is_staff: Boolean(returnedUser.is_staff ?? true),
+        is_superuser: Boolean(returnedUser.is_superuser ?? false),
+        is_active: Boolean(returnedUser.is_active ?? true),
+        role: resolvedRole,
+        permissions: returnedUser.permissions || data.permissions || {},
+      };
+
+      localStorage.setItem("staff_token", resolvedToken);
+      localStorage.setItem("staff_username", resolvedUsername);
+      localStorage.setItem("username", resolvedUsername);
+      localStorage.setItem("staff_role", resolvedRole);
+      localStorage.setItem("recyclrUser", JSON.stringify(storedUser));
+      router.replace("/dashboard");
     } catch (err) {
       setError(friendlyApiError(err));
       setLoading(false);
