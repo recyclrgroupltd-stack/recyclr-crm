@@ -440,6 +440,95 @@ def staff_list_view(request):
     )
 
 
+@api_view(["POST"])
+def create_staff_user_view(request):
+    _, error_response = require_admin(request)
+    if error_response:
+        return error_response
+
+    payload = request.data if isinstance(request.data, dict) else {}
+    username = str(payload.get("username") or "").strip()
+    password = str(payload.get("password") or "")
+    role = str(payload.get("role") or "staff").strip().lower()
+    email = str(payload.get("email") or "").strip()
+    first_name = str(payload.get("first_name") or "").strip()
+    last_name = str(payload.get("last_name") or "").strip()
+    company_phone = str(payload.get("company_phone") or "").strip()
+    job_title = str(payload.get("job_title") or "").strip()
+    auto_assign_customers = bool(payload.get("auto_assign_customers", True))
+
+    valid_roles = {"admin", "manager", "sales", "operations", "driver", "finance", "staff"}
+    if not username:
+        return Response(
+            {"success": False, "message": "Username is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not password:
+        return Response(
+            {"success": False, "message": "Temporary password is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if len(password) < 8:
+        return Response(
+            {"success": False, "message": "Temporary password must be at least 8 characters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if role not in valid_roles:
+        return Response(
+            {"success": False, "message": "Invalid role selected."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if User.objects.filter(username__iexact=username).exists():
+        return Response(
+            {"success": False, "message": "A staff user with that username already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if email and User.objects.filter(email__iexact=email).exists():
+        return Response(
+            {"success": False, "message": "A user with that email already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        email=email or derived_company_email(username),
+        first_name=first_name,
+        last_name=last_name,
+        is_staff=True,
+        is_active=True,
+        is_superuser=role == "admin",
+    )
+
+    group, _ = Group.objects.get_or_create(name=ROLE_TO_GROUP[role])
+    user.groups.add(group)
+
+    profile = get_staff_profile(user)
+    profile.company_email = email or derived_company_email(username)
+    profile.company_phone = company_phone
+    profile.job_title = job_title
+    profile.auto_assign_customers = auto_assign_customers
+    profile.save(
+        update_fields=[
+            "company_email",
+            "company_phone",
+            "job_title",
+            "auto_assign_customers",
+            "updated_at",
+        ]
+    )
+
+    user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user.pk)
+    return Response(
+        {
+            "success": True,
+            "message": f"Staff user created for {user.username}.",
+            "user": serialize_user(user),
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
 @api_view(["GET", "PATCH"])
 def staff_profile_me_view(request):
     user, error_response = require_authenticated_staff_user(request)

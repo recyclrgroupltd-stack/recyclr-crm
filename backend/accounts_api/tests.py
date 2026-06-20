@@ -79,3 +79,40 @@ class EnsureStaffUserTests(TestCase):
         self.assertTrue(existing_user.is_superuser)
         self.assertTrue(existing_user.check_password("Password123@"))
         self.assertEqual(existing_user.staff_profile.job_title, "Founder")
+
+
+class CreateStaffUserTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = get_user_model().objects.create_superuser(
+            username="Jay.Gallagher",
+            email="jay.gallagher@recyclrgroup.co.uk",
+            password="Password123@",
+            is_staff=True,
+        )
+
+    def test_admin_can_create_staff_user(self):
+        response = self.client.post(
+            "/api/auth/staff/create/",
+            {
+                "username": "Alex.Driver",
+                "password": "TempPass123@",
+                "email": "alex.driver@recyclrgroup.co.uk",
+                "first_name": "Alex",
+                "last_name": "Driver",
+                "role": "driver",
+                "job_title": "Driver",
+                "company_phone": "07000000000",
+            },
+            format="json",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["success"])
+
+        created_user = get_user_model().objects.get(username="Alex.Driver")
+        self.assertTrue(created_user.is_staff)
+        self.assertFalse(created_user.is_superuser)
+        self.assertTrue(created_user.check_password("TempPass123@"))
+        self.assertEqual(created_user.staff_profile.job_title, "Driver")

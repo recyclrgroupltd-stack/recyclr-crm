@@ -3,6 +3,7 @@ from .views import (
     change_password_view,
     company_logo_view,
     company_details_view,
+    create_staff_user_view,
     generate_staff_mailbox_password_view,
     login_view,
     staff_profile_detail_view,
@@ -22,6 +23,7 @@ urlpatterns = [
     path("profile/me/", staff_profile_me_view, name="api-staff-profile-me"),
     path("profile/<int:user_id>/", staff_profile_detail_view, name="api-staff-profile-detail"),
     path("staff/", staff_list_view, name="api-staff-list"),
+    path("staff/create/", create_staff_user_view, name="api-staff-create"),
     path("staff/<int:user_id>/profile/", update_staff_profile_admin_view, name="api-staff-profile-admin-update"),
     path(
         "staff/<int:user_id>/mailbox/generate-password/",

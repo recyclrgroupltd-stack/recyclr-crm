@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "../../components/StaffShell";
+import { apiPath, readApiPayload } from "../../lib/apiBase";
 import {
   canManageUsers,
   canViewStaff,
@@ -24,6 +25,17 @@ type ProfileDraft = {
   auto_assign_customers: boolean;
   mailbox_enabled: boolean;
   mailbox_password: string;
+};
+type NewStaffDraft = {
+  username: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  company_phone: string;
+  job_title: string;
+  role: string;
+  auto_assign_customers: boolean;
 };
 
 const roleOptions = [
@@ -58,6 +70,18 @@ export default function StaffPage() {
   const [companyEmailDomain, setCompanyEmailDomain] = useState("recyclrgroup.co.uk");
   const [expandedUserIds, setExpandedUserIds] = useState<number[]>([]);
   const [profileDrafts, setProfileDrafts] = useState<Record<number, ProfileDraft>>({});
+  const [showCreateStaff, setShowCreateStaff] = useState(false);
+  const [newStaff, setNewStaff] = useState<NewStaffDraft>({
+    username: "",
+    password: "",
+    first_name: "",
+    last_name: "",
+    email: "",
+    company_phone: "",
+    job_title: "",
+    role: "staff",
+    auto_assign_customers: true,
+  });
 
   const groupedPermissions = useMemo(() => getPermissionGroups(), []);
   const allowed = canViewStaff(currentUser);
@@ -79,7 +103,7 @@ export default function StaffPage() {
     try {
       setError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/auth/staff/", {
+      const response = await fetch(apiPath("/api/auth/staff/"), {
         headers: {
           ...getAuthHeaders(),
         },
@@ -129,7 +153,7 @@ export default function StaffPage() {
 
     async function loadCompanyDefaults() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/auth/company-details/", {
+        const response = await fetch(apiPath("/api/auth/company-details/"), {
           headers: getAuthHeaders(),
         });
         const data = await response.json().catch(() => null);
@@ -200,6 +224,13 @@ export default function StaffPage() {
     return localPart ? `${localPart}@${companyEmailDomain}` : "";
   }
 
+  function updateNewStaff(field: keyof NewStaffDraft, value: string | boolean) {
+    setNewStaff((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
   function toggleExpanded(userId: number) {
     setExpandedUserIds((current) =>
       current.includes(userId)
@@ -227,7 +258,7 @@ export default function StaffPage() {
     setMessage("");
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/auth/staff/${userId}/role/`, {
+      const response = await fetch(apiPath(`/api/auth/staff/${userId}/role/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -269,7 +300,7 @@ export default function StaffPage() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/auth/staff/${userId}/permissions/override/`,
+        apiPath(`/api/auth/staff/${userId}/permissions/override/`),
         {
           method: "POST",
           headers: {
@@ -320,7 +351,7 @@ export default function StaffPage() {
         mailbox_password: "",
       };
 
-      const response = await fetch(`http://127.0.0.1:8000/api/auth/staff/${userId}/profile/`, {
+      const response = await fetch(apiPath(`/api/auth/staff/${userId}/profile/`), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -345,6 +376,67 @@ export default function StaffPage() {
         setError(err.message);
       } else {
         setError("Could not update profile details.");
+      }
+    } finally {
+      setSavingUserId(null);
+    }
+  }
+
+  async function createStaffUser() {
+    setSavingUserId(0);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(apiPath("/api/auth/staff/create/"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify(newStaff),
+      });
+
+      const data = await readApiPayload(response, "Failed to create staff user.");
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to create staff user.");
+      }
+
+      const createdUser = data.user as StaffUser;
+      setStaff((current) =>
+        [...current, createdUser].sort((a, b) => a.username.localeCompare(b.username))
+      );
+      setProfileDrafts((current) => ({
+        ...current,
+        [createdUser.id]: {
+          company_email: createdUser.profile?.company_email || "",
+          company_phone: createdUser.profile?.company_phone || "",
+          job_title: createdUser.profile?.job_title || "",
+          auto_assign_customers: createdUser.profile?.auto_assign_customers !== false,
+          mailbox_enabled: Boolean(createdUser.profile?.mailbox_enabled),
+          mailbox_password: "",
+        },
+      }));
+      setExpandedUserIds((current) => Array.from(new Set([...current, createdUser.id])));
+      setNewStaff({
+        username: "",
+        password: "",
+        first_name: "",
+        last_name: "",
+        email: "",
+        company_phone: "",
+        job_title: "",
+        role: "staff",
+        auto_assign_customers: true,
+      });
+      setShowCreateStaff(false);
+      setMessage(data.message || `Staff user created for ${createdUser.username}.`);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Could not create staff user.");
       }
     } finally {
       setSavingUserId(null);
@@ -395,6 +487,127 @@ export default function StaffPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            ) : null}
+
+            {canManage ? (
+              <div className="mt-5 rounded-lg border border-violet-100 bg-violet-50 p-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-base font-black text-slate-950">Add Staff</h3>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                      Create a login, set a temporary password, then choose their role.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateStaff((current) => !current)}
+                    className="rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-800"
+                  >
+                    {showCreateStaff ? "Hide Form" : "Add Staff"}
+                  </button>
+                </div>
+
+                {showCreateStaff ? (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Username</label>
+                      <input
+                        value={newStaff.username}
+                        onChange={(event) => updateNewStaff("username", event.target.value)}
+                        placeholder="Alex.Driver"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Temporary Password</label>
+                      <input
+                        type="password"
+                        value={newStaff.password}
+                        onChange={(event) => updateNewStaff("password", event.target.value)}
+                        placeholder="Minimum 8 characters"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">First Name</label>
+                      <input
+                        value={newStaff.first_name}
+                        onChange={(event) => updateNewStaff("first_name", event.target.value)}
+                        placeholder="Alex"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Last Name</label>
+                      <input
+                        value={newStaff.last_name}
+                        onChange={(event) => updateNewStaff("last_name", event.target.value)}
+                        placeholder="Driver"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Role</label>
+                      <select
+                        value={newStaff.role}
+                        onChange={(event) => updateNewStaff("role", event.target.value)}
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none"
+                      >
+                        {roleOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Company Email</label>
+                      <input
+                        value={newStaff.email}
+                        onChange={(event) => updateNewStaff("email", event.target.value)}
+                        placeholder={derivedEmail(newStaff.username)}
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Company Number</label>
+                      <input
+                        value={newStaff.company_phone}
+                        onChange={(event) => updateNewStaff("company_phone", event.target.value)}
+                        placeholder="Work mobile or extension"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-600">Job Title</label>
+                      <input
+                        value={newStaff.job_title}
+                        onChange={(event) => updateNewStaff("job_title", event.target.value)}
+                        placeholder="Operations Manager"
+                        className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                      />
+                    </div>
+                    <label className="flex items-center gap-3 rounded-lg border border-violet-100 bg-white p-4 text-sm font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={newStaff.auto_assign_customers}
+                        onChange={(event) => updateNewStaff("auto_assign_customers", event.target.checked)}
+                      />
+                      Auto assign new customers
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={createStaffUser}
+                        disabled={savingUserId === 0}
+                        className="w-full rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {savingUserId === 0 ? "Creating..." : "Create Staff Login"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
