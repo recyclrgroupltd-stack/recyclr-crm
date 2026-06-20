@@ -1,10 +1,8 @@
 const LOCAL_BACKEND_BASE = "http://127.0.0.1:8000";
 const LOCALHOST_BACKEND_BASE = "http://localhost:8000";
 const HOSTED_BACKEND_BASE = "https://recyclr-crm-backend.onrender.com";
-const isProduction = process.env.NODE_ENV === "production";
 
-export const BACKEND_BASE =
-  isProduction ? process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE : process.env.NEXT_PUBLIC_BACKEND_BASE || LOCAL_BACKEND_BASE;
+export const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKEND_BASE;
 
 const STAFF_API_BASE = BACKEND_BASE;
 
