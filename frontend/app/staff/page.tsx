@@ -19,6 +19,8 @@ import {
 
 type StaffUser = StoredUser;
 type ProfileDraft = {
+  first_name: string;
+  last_name: string;
   company_email: string;
   company_phone: string;
   job_title: string;
@@ -69,6 +71,7 @@ export default function StaffPage() {
   const [searchText, setSearchText] = useState("");
   const [companyEmailDomain, setCompanyEmailDomain] = useState("recyclrgroup.co.uk");
   const [expandedUserIds, setExpandedUserIds] = useState<number[]>([]);
+  const [permissionExpandedUserIds, setPermissionExpandedUserIds] = useState<number[]>([]);
   const [profileDrafts, setProfileDrafts] = useState<Record<number, ProfileDraft>>({});
   const [passwordDrafts, setPasswordDrafts] = useState<Record<number, string>>({});
   const [showCreateStaff, setShowCreateStaff] = useState(false);
@@ -123,6 +126,8 @@ export default function StaffPage() {
           loadedStaff.map((user: StaffUser) => [
             user.id,
             {
+              first_name: user.first_name || "",
+              last_name: user.last_name || "",
               company_email: user.profile?.company_email || "",
               company_phone: user.profile?.company_phone || "",
               job_title: user.profile?.job_title || "",
@@ -202,6 +207,8 @@ export default function StaffPage() {
       ...current,
       [userId]: {
         company_email: current[userId]?.company_email || "",
+        first_name: current[userId]?.first_name || "",
+        last_name: current[userId]?.last_name || "",
         company_phone: current[userId]?.company_phone || "",
         job_title: current[userId]?.job_title || "",
         auto_assign_customers: current[userId]?.auto_assign_customers !== false,
@@ -232,6 +239,13 @@ export default function StaffPage() {
     }));
   }
 
+  function staffDisplayName(user: StaffUser) {
+    const name =
+      user.display_name ||
+      [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+    return name || user.username;
+  }
+
   function updatePasswordDraft(userId: number, value: string) {
     setPasswordDrafts((current) => ({
       ...current,
@@ -247,6 +261,14 @@ export default function StaffPage() {
     );
   }
 
+  function togglePermissions(userId: number) {
+    setPermissionExpandedUserIds((current) =>
+      current.includes(userId)
+        ? current.filter((id) => id !== userId)
+        : [...current, userId]
+    );
+  }
+
   function expandAllVisible() {
     setExpandedUserIds((current) => {
       const visibleIds = filteredStaff.map((user) => user.id);
@@ -256,6 +278,9 @@ export default function StaffPage() {
 
   function collapseAllVisible() {
     setExpandedUserIds((current) =>
+      current.filter((id) => !filteredStaff.some((user) => user.id === id))
+    );
+    setPermissionExpandedUserIds((current) =>
       current.filter((id) => !filteredStaff.some((user) => user.id === id))
     );
   }
@@ -397,6 +422,7 @@ export default function StaffPage() {
 
       setStaff((prev) => prev.filter((user) => user.id !== userId));
       setExpandedUserIds((current) => current.filter((id) => id !== userId));
+      setPermissionExpandedUserIds((current) => current.filter((id) => id !== userId));
       setProfileDrafts((current) => {
         const next = { ...current };
         delete next[userId];
@@ -473,6 +499,8 @@ export default function StaffPage() {
 
     try {
       const draft = profileDrafts[userId] || {
+        first_name: "",
+        last_name: "",
         company_email: "",
         company_phone: "",
         job_title: "",
@@ -541,6 +569,8 @@ export default function StaffPage() {
         ...current,
         [createdUser.id]: {
           company_email: createdUser.profile?.company_email || "",
+          first_name: createdUser.first_name || "",
+          last_name: createdUser.last_name || "",
           company_phone: createdUser.profile?.company_phone || "",
           job_title: createdUser.profile?.job_title || "",
           auto_assign_customers: createdUser.profile?.auto_assign_customers !== false,
@@ -784,8 +814,11 @@ export default function StaffPage() {
             ) : (
               filteredStaff.map((user) => {
                 const expanded = expandedUserIds.includes(user.id);
+                const permissionsExpanded = permissionExpandedUserIds.includes(user.id);
                 const draft = profileDrafts[user.id] || {
                   company_email: user.profile?.company_email || derivedEmail(user.username),
+                  first_name: user.first_name || "",
+                  last_name: user.last_name || "",
                   company_phone: user.profile?.company_phone || "",
                   job_title: user.profile?.job_title || "",
                   auto_assign_customers: user.profile?.auto_assign_customers !== false,
@@ -798,14 +831,17 @@ export default function StaffPage() {
                     key={user.id}
                     className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 backdrop-blur-lg"
                   >
-                    <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
                       <button
                         type="button"
                         onClick={() => toggleExpanded(user.id)}
                         className="flex-1 text-left"
                       >
                         <div className="flex flex-wrap items-center gap-3">
-                          <div className="text-lg font-semibold">{user.username}</div>
+                          <div>
+                            <div className="text-lg font-semibold">{staffDisplayName(user)}</div>
+                            <div className="mt-1 text-xs font-semibold text-slate-400">{user.username}</div>
+                          </div>
 
                           <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
                             {roleLabel(user)}
@@ -829,6 +865,16 @@ export default function StaffPage() {
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          {user.profile?.job_title ? (
+                            <span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">
+                              {user.profile.job_title}
+                            </span>
+                          ) : null}
+                          {user.profile?.company_email ? (
+                            <span className="rounded-full bg-white/10 px-3 py-1 text-slate-200">
+                              {user.profile.company_email}
+                            </span>
+                          ) : null}
                           <span
                             className={`rounded-full px-3 py-1 ${
                               hasPermission(user, "leads.edit")
@@ -891,21 +937,53 @@ export default function StaffPage() {
                         </div>
 
                         <div className="mt-3 text-sm text-slate-500">
-                          {canManage ? (expanded ? "Hide full permissions" : "Show full permissions") : "Open the staff profile to view contact details"}
+                          {canManage ? (expanded ? "Hide management controls" : "Manage user") : "Open the staff profile to view contact details"}
                         </div>
                       </button>
 
-                      <div className="flex w-full flex-col gap-3 lg:w-[180px]">
+                      <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
                         <Link
                           href={`/staff/${user.id}`}
                           className="rounded-lg bg-violet-700 px-4 py-3 text-center text-sm font-bold text-white transition hover:bg-violet-800"
                         >
                           View Profile
                         </Link>
+                        {canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(user.id)}
+                            className="rounded-lg bg-white px-4 py-3 text-center text-sm font-bold text-violet-800 transition hover:bg-violet-50"
+                          >
+                            {expanded ? "Collapse" : "Manage"}
+                          </button>
+                        ) : null}
                       </div>
+                    </div>
 
-                      {canManage ? (
-                      <div className="grid w-full gap-3 lg:w-[560px] lg:grid-cols-2">
+                    {expanded && canManage ? (
+                      <div className="grid gap-3 border-t border-white/10 p-5 lg:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-slate-600">
+                            First Name
+                          </label>
+                          <input
+                            value={draft.first_name}
+                            onChange={(event) => updateProfileDraft(user.id, "first_name", event.target.value)}
+                            placeholder="First name"
+                            className="w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-slate-600">
+                            Last Name
+                          </label>
+                          <input
+                            value={draft.last_name}
+                            onChange={(event) => updateProfileDraft(user.id, "last_name", event.target.value)}
+                            placeholder="Last name"
+                            className="w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                          />
+                        </div>
                         <div>
                           <label className="mb-2 block text-sm font-medium text-slate-600">
                             Company Email
@@ -1076,11 +1154,27 @@ export default function StaffPage() {
                             </button>
                           </div>
                         </div>
+                        <div className="rounded-lg border border-violet-100 bg-white p-4 lg:col-span-2">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <div className="text-sm font-black text-slate-950">Permission Overrides</div>
+                              <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Keep this closed unless you need to override individual role permissions.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => togglePermissions(user.id)}
+                              className="rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-800"
+                            >
+                              {permissionsExpanded ? "Hide Permissions" : "Show Permissions"}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                       ) : null}
-                    </div>
 
-                    {expanded && canManage ? (
+                    {expanded && canManage && permissionsExpanded ? (
                       <div className="border-t border-white/10 px-5 pb-5 pt-5">
                         <div className="space-y-4">
                           {Object.entries(groupedPermissions).map(([category, permissions]) => (

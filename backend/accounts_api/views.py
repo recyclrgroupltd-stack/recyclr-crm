@@ -172,6 +172,9 @@ def serialize_user(user):
     return {
         "id": user.id,
         "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "display_name": user.get_full_name() or user.username,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
         "is_active": user.is_active,
@@ -206,6 +209,9 @@ def serialize_user_minimal(user):
     return {
         "id": user.id,
         "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "display_name": user.get_full_name() or user.username,
         "is_staff": user.is_staff,
         "is_superuser": user.is_superuser,
         "is_active": user.is_active,
@@ -588,6 +594,13 @@ def update_staff_profile_admin_view(request, user_id):
 
     payload = request.data if isinstance(request.data, dict) else {}
     profile = get_staff_profile(target_user)
+
+    if "first_name" in payload:
+        target_user.first_name = str(payload.get("first_name") or "").strip()
+    if "last_name" in payload:
+        target_user.last_name = str(payload.get("last_name") or "").strip()
+    if "first_name" in payload or "last_name" in payload:
+        target_user.save(update_fields=["first_name", "last_name"])
 
     profile.company_email = str(
         payload.get("company_email", profile.company_email) or derived_company_email(target_user.username)

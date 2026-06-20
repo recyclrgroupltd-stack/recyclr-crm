@@ -9,6 +9,9 @@ export type PermissionOverride = {
 export type StoredUser = {
   id: number;
   username: string;
+  first_name?: string;
+  last_name?: string;
+  display_name?: string;
   is_staff: boolean;
   is_superuser: boolean;
   is_active?: boolean;
