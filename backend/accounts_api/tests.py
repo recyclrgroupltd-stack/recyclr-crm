@@ -158,3 +158,42 @@ class CreateStaffUserTests(TestCase):
         self.assertTrue(response.data["success"])
         target_user.refresh_from_db()
         self.assertFalse(target_user.is_active)
+
+    def test_admin_can_reset_staff_password(self):
+        target_user = get_user_model().objects.create_user(
+            username="Alex.Driver",
+            email="alex.driver@recyclrgroup.co.uk",
+            password="OldPass123@",
+            is_staff=True,
+            is_active=True,
+        )
+
+        response = self.client.post(
+            f"/api/auth/staff/{target_user.id}/password/",
+            {"password": "NewPass123@"},
+            format="json",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        target_user.refresh_from_db()
+        self.assertTrue(target_user.check_password("NewPass123@"))
+
+    def test_admin_can_delete_staff_user(self):
+        target_user = get_user_model().objects.create_user(
+            username="Temp.Admin",
+            email="temp.admin@recyclrgroup.co.uk",
+            password="TempPass123@",
+            is_staff=True,
+            is_active=True,
+        )
+
+        response = self.client.delete(
+            f"/api/auth/staff/{target_user.id}/delete/",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.assertFalse(get_user_model().objects.filter(pk=target_user.id).exists())

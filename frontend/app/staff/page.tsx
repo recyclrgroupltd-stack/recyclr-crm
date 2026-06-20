@@ -70,6 +70,7 @@ export default function StaffPage() {
   const [companyEmailDomain, setCompanyEmailDomain] = useState("recyclrgroup.co.uk");
   const [expandedUserIds, setExpandedUserIds] = useState<number[]>([]);
   const [profileDrafts, setProfileDrafts] = useState<Record<number, ProfileDraft>>({});
+  const [passwordDrafts, setPasswordDrafts] = useState<Record<number, string>>({});
   const [showCreateStaff, setShowCreateStaff] = useState(false);
   const [newStaff, setNewStaff] = useState<NewStaffDraft>({
     username: "",
@@ -231,6 +232,13 @@ export default function StaffPage() {
     }));
   }
 
+  function updatePasswordDraft(userId: number, value: string) {
+    setPasswordDrafts((current) => ({
+      ...current,
+      [userId]: value,
+    }));
+  }
+
   function toggleExpanded(userId: number) {
     setExpandedUserIds((current) =>
       current.includes(userId)
@@ -320,6 +328,91 @@ export default function StaffPage() {
         setError(err.message);
       } else {
         setError("Could not update staff status.");
+      }
+    } finally {
+      setSavingUserId(null);
+    }
+  }
+
+  async function resetStaffPassword(userId: number) {
+    const password = passwordDrafts[userId] || "";
+    setSavingUserId(userId);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(apiPath(`/api/auth/staff/${userId}/password/`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reset password.");
+      }
+
+      setStaff((prev) =>
+        prev.map((user) => (user.id === userId ? data.user : user))
+      );
+      setPasswordDrafts((current) => ({
+        ...current,
+        [userId]: "",
+      }));
+      setMessage(data.message || "Password reset.");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Could not reset password.");
+      }
+    } finally {
+      setSavingUserId(null);
+    }
+  }
+
+  async function deleteStaffUser(userId: number, username: string) {
+    const confirmed = window.confirm(`Permanently delete ${username}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setSavingUserId(userId);
+    setError("");
+    setMessage("");
+
+    try {
+      const response = await fetch(apiPath(`/api/auth/staff/${userId}/delete/`), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to delete staff user.");
+      }
+
+      setStaff((prev) => prev.filter((user) => user.id !== userId));
+      setExpandedUserIds((current) => current.filter((id) => id !== userId));
+      setProfileDrafts((current) => {
+        const next = { ...current };
+        delete next[userId];
+        return next;
+      });
+      setPasswordDrafts((current) => {
+        const next = { ...current };
+        delete next[userId];
+        return next;
+      });
+      setMessage(data.message || `Deleted staff user ${username}.`);
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Could not delete staff user.");
       }
     } finally {
       setSavingUserId(null);
@@ -939,6 +1032,47 @@ export default function StaffPage() {
                               }`}
                             >
                               {user.is_active ? "Deactivate Account" : "Reactivate Account"}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-violet-100 bg-white p-4 lg:col-span-2">
+                          <div className="text-sm font-black text-slate-950">Reset Password</div>
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            Set a temporary password for another staff member. They can change it after logging in.
+                          </p>
+                          <div className="mt-3 flex flex-col gap-3 lg:flex-row">
+                            <input
+                              type="password"
+                              value={passwordDrafts[user.id] || ""}
+                              onChange={(event) => updatePasswordDraft(user.id, event.target.value)}
+                              placeholder="New temporary password"
+                              className="min-w-0 flex-1 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => resetStaffPassword(user.id)}
+                              disabled={savingUserId === user.id}
+                              className="rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Reset Password
+                            </button>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-red-100 bg-red-50 p-4 lg:col-span-2">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <div className="text-sm font-black text-red-950">Delete Staff User</div>
+                              <p className="mt-1 text-xs font-semibold text-red-700">
+                                Permanently removes this login. Use deactivate when you need to keep history.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deleteStaffUser(user.id, user.username)}
+                              disabled={savingUserId === user.id}
+                              className="rounded-lg bg-red-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Delete User
                             </button>
                           </div>
                         </div>

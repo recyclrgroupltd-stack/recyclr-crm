@@ -738,6 +738,79 @@ def update_staff_active_view(request, user_id):
 
 
 @api_view(["POST"])
+def reset_staff_password_view(request, user_id):
+    acting_user, error_response = require_admin(request)
+    if error_response:
+        return error_response
+
+    payload = request.data if isinstance(request.data, dict) else {}
+    new_password = str(payload.get("password") or "")
+
+    if len(new_password) < 4:
+        return Response(
+            {"success": False, "message": "Password must be at least 4 characters."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        target_user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user_id, is_staff=True)
+    except User.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Staff user not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if target_user.id == acting_user.id:
+        return Response(
+            {"success": False, "message": "Use the Password button to change your own password."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    target_user.set_password(new_password)
+    target_user.save(update_fields=["password"])
+
+    return Response(
+        {
+            "success": True,
+            "message": f"Password reset for {target_user.username}.",
+            "user": serialize_user(target_user),
+        }
+    )
+
+
+@api_view(["DELETE"])
+def delete_staff_user_view(request, user_id):
+    acting_user, error_response = require_admin(request)
+    if error_response:
+        return error_response
+
+    try:
+        target_user = User.objects.get(pk=user_id, is_staff=True)
+    except User.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Staff user not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if target_user.id == acting_user.id:
+        return Response(
+            {"success": False, "message": "You cannot delete your own account while signed in."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    username = target_user.username
+    target_user.delete()
+
+    return Response(
+        {
+            "success": True,
+            "message": f"Deleted staff user {username}.",
+            "deleted_user_id": user_id,
+        }
+    )
+
+
+@api_view(["POST"])
 def update_staff_permission_override_view(request, user_id):
     _, error_response = require_admin(request)
     if error_response:
