@@ -859,7 +859,7 @@ export default function StaffPage() {
 
                           {user.is_superuser ? (
                             <span className="rounded-full bg-yellow-500/20 px-3 py-1 text-xs font-medium text-yellow-100">
-                              Superuser
+                              System owner
                             </span>
                           ) : null}
                         </div>

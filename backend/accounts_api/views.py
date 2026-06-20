@@ -503,7 +503,7 @@ def create_staff_user_view(request):
         last_name=last_name,
         is_staff=True,
         is_active=True,
-        is_superuser=role == "admin",
+        is_superuser=False,
     )
 
     group, _ = Group.objects.get_or_create(name=ROLE_TO_GROUP[role])

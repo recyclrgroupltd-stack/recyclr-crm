@@ -138,6 +138,29 @@ class CreateStaffUserTests(TestCase):
         self.assertTrue(created_user.check_password("TempPass123@"))
         self.assertEqual(created_user.staff_profile.job_title, "Driver")
 
+    def test_created_admin_staff_user_is_not_database_superuser(self):
+        response = self.client.post(
+            "/api/auth/staff/create/",
+            {
+                "username": "New.Admin",
+                "password": "TempPass123@",
+                "email": "new.admin@recyclrgroup.co.uk",
+                "first_name": "New",
+                "last_name": "Admin",
+                "role": "admin",
+            },
+            format="json",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["success"])
+
+        created_user = get_user_model().objects.get(username="New.Admin")
+        self.assertEqual(response.data["user"]["role"], "admin")
+        self.assertTrue(created_user.is_staff)
+        self.assertFalse(created_user.is_superuser)
+
     def test_admin_can_deactivate_staff_user(self):
         target_user = get_user_model().objects.create_user(
             username="Admin",
