@@ -471,9 +471,58 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         window.localStorage.getItem("username") ||
         "",
       "X-Staff-Session-Token": window.localStorage.getItem("staff_token") || "",
+      "X-Staff-Device-Name": window.localStorage.getItem("staff_device_name") || "",
     }),
     []
   );
+
+  const clearLocalSession = useCallback(() => {
+    window.localStorage.removeItem("staff_token");
+    window.localStorage.removeItem("staff_username");
+    window.localStorage.removeItem("username");
+    window.localStorage.removeItem("staff_role");
+    window.localStorage.removeItem("staff_device_name");
+    window.localStorage.removeItem("recyclrUser");
+  }, []);
+
+  const handleReplacedSession = useCallback(
+    (message?: string) => {
+      alert(message || "You were logged out because this user logged in on another device.");
+      clearLocalSession();
+      router.replace("/login");
+    },
+    [clearLocalSession, router]
+  );
+
+  useEffect(() => {
+    if (!authResolved || !username) return;
+
+    async function ensureServerSession() {
+      try {
+        const response = await fetch(apiPath("/api/auth/session/"), {
+          method: "POST",
+          headers: staffHeader(),
+        });
+        const data = await response.json().catch(() => null);
+
+        if (response.status === 401 && data?.code === "session_replaced") {
+          handleReplacedSession(data.message);
+          return;
+        }
+
+        if (response.ok && data?.success && data.token) {
+          window.localStorage.setItem("staff_token", data.token);
+          if (data.device_name) {
+            window.localStorage.setItem("staff_device_name", data.device_name);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to register staff session", error);
+      }
+    }
+
+    ensureServerSession();
+  }, [authResolved, handleReplacedSession, staffHeader, username]);
 
   const loadChatSummary = useCallback(async () => {
     try {

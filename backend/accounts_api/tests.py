@@ -132,6 +132,20 @@ class StaffLoginTests(TestCase):
         self.assertEqual(logout_response.status_code, 200)
         self.assertFalse(StaffSession.objects.get(token=token).is_active)
 
+    def test_session_endpoint_upgrades_legacy_local_session(self):
+        response = self.client.post(
+            "/api/auth/session/",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+            HTTP_X_STAFF_SESSION_TOKEN="staff-session-active",
+            HTTP_X_STAFF_DEVICE_NAME="Chrome on desktop",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.assertNotEqual(response.data["token"], "staff-session-active")
+        self.assertEqual(response.data["device_name"], "Chrome on desktop")
+        self.assertEqual(StaffSession.objects.filter(user=self.user, is_active=True).count(), 1)
+
 
 class EnsureStaffUserTests(TestCase):
     def test_command_updates_matching_existing_user_instead_of_creating_duplicate(self):

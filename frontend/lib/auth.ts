@@ -109,6 +109,11 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
   const username = user?.username || fallbackUsername;
   const sessionToken =
     typeof window === "undefined" ? "" : localStorage.getItem("staff_token") || "";
+  const deviceName =
+    typeof window === "undefined"
+      ? ""
+      : localStorage.getItem("staff_device_name") ||
+        `${window.navigator.userAgent.includes("Chrome/") ? "Chrome" : "Browser"} on ${window.navigator.platform || "this device"}`;
 
   if (!username) {
     return extraHeaders || {};
@@ -117,6 +122,7 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
   return {
     "X-Staff-Username": username,
     ...(sessionToken ? { "X-Staff-Session-Token": sessionToken } : {}),
+    ...(deviceName ? { "X-Staff-Device-Name": deviceName } : {}),
     ...(extraHeaders || {}),
   };
 }
