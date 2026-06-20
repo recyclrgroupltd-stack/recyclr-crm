@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [activeDeviceName, setActiveDeviceName] = useState("");
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem("staff_token");
@@ -29,56 +28,7 @@ export default function LoginPage() {
     setAuthResolved(true);
   }, [router]);
 
-  function getDeviceName() {
-    const platform = window.navigator.platform || "Unknown platform";
-    const userAgent = window.navigator.userAgent || "";
-    const browser = userAgent.includes("Edg/")
-      ? "Edge"
-      : userAgent.includes("Chrome/")
-        ? "Chrome"
-        : userAgent.includes("Firefox/")
-          ? "Firefox"
-          : userAgent.includes("Safari/")
-            ? "Safari"
-            : "Browser";
-    return `${browser} on ${platform}`;
-  }
-
-  function storeLogin(data: any) {
-    const returnedUser = data.user || {};
-    const resolvedUsername =
-      data.username ||
-      returnedUser.username ||
-      username;
-
-    const resolvedRole =
-      data.role ||
-      returnedUser.role ||
-      "staff";
-
-    const resolvedToken =
-      data.token ||
-      "staff-session-active";
-
-    const storedUser = {
-      id: returnedUser.id || 0,
-      username: resolvedUsername,
-      is_staff: Boolean(returnedUser.is_staff ?? true),
-      is_superuser: Boolean(returnedUser.is_superuser ?? false),
-      is_active: Boolean(returnedUser.is_active ?? true),
-      role: resolvedRole,
-      permissions: returnedUser.permissions || data.permissions || {},
-    };
-
-    window.localStorage.setItem("staff_token", resolvedToken);
-    window.localStorage.setItem("staff_username", resolvedUsername);
-    window.localStorage.setItem("username", resolvedUsername);
-    window.localStorage.setItem("staff_role", resolvedRole);
-    window.localStorage.setItem("staff_device_name", data.device_name || getDeviceName());
-    window.localStorage.setItem("recyclrUser", JSON.stringify(storedUser));
-  }
-
-  async function handleSubmit(event?: FormEvent<HTMLFormElement>, forceLogin = false) {
+  async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
     if (event) {
       event.preventDefault();
     }
@@ -97,23 +47,45 @@ export default function LoginPage() {
         body: JSON.stringify({
           username,
           password,
-          device_name: getDeviceName(),
-          force_login: forceLogin,
         }),
       });
 
       const data = await readApiPayload(response, "Login failed.");
 
-      if (response.status === 409 && data.code === "active_session_exists") {
-        setActiveDeviceName(data.active_device_name || "another device");
-        return;
-      }
-
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Login failed.");
       }
 
-      storeLogin(data);
+      const returnedUser = data.user || {};
+      const resolvedUsername =
+        data.username ||
+        returnedUser.username ||
+        username;
+
+      const resolvedRole =
+        data.role ||
+        returnedUser.role ||
+        "staff";
+
+      const resolvedToken =
+        data.token ||
+        "staff-session-active";
+
+      const storedUser = {
+        id: returnedUser.id || 0,
+        username: resolvedUsername,
+        is_staff: Boolean(returnedUser.is_staff ?? true),
+        is_superuser: Boolean(returnedUser.is_superuser ?? false),
+        is_active: Boolean(returnedUser.is_active ?? true),
+        role: resolvedRole,
+        permissions: returnedUser.permissions || data.permissions || {},
+      };
+
+      window.localStorage.setItem("staff_token", resolvedToken);
+      window.localStorage.setItem("staff_username", resolvedUsername);
+      window.localStorage.setItem("username", resolvedUsername);
+      window.localStorage.setItem("staff_role", resolvedRole);
+      window.localStorage.setItem("recyclrUser", JSON.stringify(storedUser));
 
       router.replace("/dashboard");
     } catch (err) {
@@ -142,35 +114,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#4a2ea8] px-4 text-white">
-      {activeDeviceName ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-white p-6 text-slate-950 shadow-2xl">
-            <h2 className="text-xl font-bold">User Already Logged In</h2>
-            <p className="mt-3 text-sm font-medium text-slate-600">
-              This user is already logged into {activeDeviceName}. If you continue, that device will be logged out.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveDeviceName("")}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveDeviceName("");
-                  handleSubmit(undefined, true);
-                }}
-                className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-800"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
       <div className="w-full max-w-md rounded-[32px] border border-white/15 bg-white/10 p-8 backdrop-blur-lg">
         <div className="mb-8 text-center">
           <img

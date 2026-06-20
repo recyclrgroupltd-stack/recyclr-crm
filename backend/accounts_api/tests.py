@@ -3,7 +3,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import StaffProfile, StaffSession
+from .models import StaffProfile
 
 
 class StaffLoginTests(TestCase):
@@ -48,69 +48,6 @@ class StaffLoginTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["success"])
         self.assertEqual(response.data["username"], "Jay.Gallagher")
-
-    def test_second_device_login_requires_confirmation(self):
-        first_response = self.client.post(
-            "/api/auth/login/",
-            {
-                "username": "Jay.Gallagher",
-                "password": "Password123@",
-                "device_name": "Chrome on desktop",
-            },
-            format="json",
-        )
-        self.assertEqual(first_response.status_code, 200)
-
-        second_response = self.client.post(
-            "/api/auth/login/",
-            {
-                "username": "Jay.Gallagher",
-                "password": "Password123@",
-                "device_name": "Tablet",
-            },
-            format="json",
-        )
-
-        self.assertEqual(second_response.status_code, 409)
-        self.assertEqual(second_response.data["code"], "active_session_exists")
-        self.assertEqual(second_response.data["active_device_name"], "Chrome on desktop")
-
-    def test_forced_login_replaces_existing_session(self):
-        first_response = self.client.post(
-            "/api/auth/login/",
-            {
-                "username": "Jay.Gallagher",
-                "password": "Password123@",
-                "device_name": "Chrome on desktop",
-            },
-            format="json",
-        )
-        old_token = first_response.data["token"]
-
-        forced_response = self.client.post(
-            "/api/auth/login/",
-            {
-                "username": "Jay.Gallagher",
-                "password": "Password123@",
-                "device_name": "Tablet",
-                "force_login": True,
-            },
-            format="json",
-        )
-
-        self.assertEqual(forced_response.status_code, 200)
-        self.assertNotEqual(forced_response.data["token"], old_token)
-        self.assertEqual(StaffSession.objects.filter(user=self.user, is_active=True).count(), 1)
-
-        replaced_response = self.client.get(
-            "/api/auth/staff/",
-            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
-            HTTP_X_STAFF_SESSION_TOKEN=old_token,
-        )
-
-        self.assertEqual(replaced_response.status_code, 401)
-        self.assertEqual(replaced_response.data["code"], "session_replaced")
-        self.assertIn("Tablet", replaced_response.data["message"])
 
 
 class EnsureStaffUserTests(TestCase):

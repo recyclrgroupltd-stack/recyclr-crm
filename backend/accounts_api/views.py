@@ -7,13 +7,12 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.db.models import Q
 from django.http import HttpResponse
-from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
 from .company_branding import get_company_logo_data
-from .models import CompanyDetails, StaffProfile, StaffSession, UserPermissionOverride
+from .models import CompanyDetails, StaffProfile, UserPermissionOverride
 from .permissions import (
     PERMISSION_REGISTRY,
     apply_overrides_to_permissions,
@@ -165,36 +164,6 @@ def generate_mailbox_password(length=18):
             return password
 
 
-def get_request_ip(request):
-    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip() or None
-    return request.META.get("REMOTE_ADDR") or None
-
-
-def clean_device_name(device_name):
-    cleaned = str(device_name or "").strip()
-    return cleaned[:200] if cleaned else "Unknown device"
-
-
-def create_staff_session(user, request, device_name):
-    return StaffSession.objects.create(
-        user=user,
-        token=secrets.token_urlsafe(48),
-        device_name=clean_device_name(device_name),
-        user_agent=str(request.META.get("HTTP_USER_AGENT", ""))[:1000],
-        ip_address=get_request_ip(request),
-    )
-
-
-def get_active_staff_session(user):
-    return (
-        StaffSession.objects.filter(user=user, is_active=True)
-        .order_by("-last_seen_at", "-created_at")
-        .first()
-    )
-
-
 def serialize_user(user):
     role = get_staff_role(user)
     merged_permission_map = get_merged_permission_map_for_user(user)
@@ -324,27 +293,6 @@ def require_authenticated_staff_user(request):
     if not user:
         return None, permission_denied_response("Please sign in again.", status.HTTP_401_UNAUTHORIZED)
 
-    token = request.headers.get("X-Staff-Session-Token", "").strip()
-    if token:
-        session = StaffSession.objects.filter(token=token, user=user).first()
-        if not session:
-            return None, permission_denied_response("Please sign in again.", status.HTTP_401_UNAUTHORIZED)
-
-        if not session.is_active:
-            next_device = session.replaced_by_device_name or "another device"
-            return None, Response(
-                {
-                    "success": False,
-                    "code": "session_replaced",
-                    "message": f"You were relogged into {next_device} and have been logged out of this device.",
-                    "device_name": next_device,
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        session.last_seen_at = timezone.now()
-        session.save(update_fields=["last_seen_at"])
-
     return user, None
 
 
@@ -377,8 +325,6 @@ def require_admin(request):
 def login_view(request):
     username = request.data.get("username", "").strip()
     password = request.data.get("password", "")
-    force_login = bool(request.data.get("force_login", False))
-    device_name = clean_device_name(request.data.get("device_name", ""))
 
     staff_user = get_request_user_from_username(username)
     auth_username = staff_user.username if staff_user else username
@@ -396,27 +342,6 @@ def login_view(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    active_session = get_active_staff_session(user)
-    if active_session and not force_login:
-        return Response(
-            {
-                "success": False,
-                "code": "active_session_exists",
-                "message": f"This user is already logged into {active_session.device_name or 'another device'}.",
-                "active_device_name": active_session.device_name or "another device",
-            },
-            status=status.HTTP_409_CONFLICT,
-        )
-
-    if active_session and force_login:
-        StaffSession.objects.filter(user=user, is_active=True).update(
-            is_active=False,
-            replaced_by_device_name=device_name,
-            ended_at=timezone.now(),
-        )
-
-    staff_session = create_staff_session(user, request, device_name)
-
     try:
         user = User.objects.prefetch_related("groups", "permission_overrides").get(pk=user.pk)
         user_data = serialize_user(user)
@@ -428,8 +353,7 @@ def login_view(request):
         {
             "success": True,
             "message": "Login successful.",
-            "token": staff_session.token,
-            "device_name": staff_session.device_name,
+            "token": "staff-session-active",
             "username": user_data["username"],
             "role": user_data["role"],
             "permissions": user_data["permissions"],
