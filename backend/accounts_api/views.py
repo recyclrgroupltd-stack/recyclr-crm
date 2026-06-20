@@ -773,12 +773,6 @@ def reset_staff_password_view(request, user_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    if target_user.id == acting_user.id:
-        return Response(
-            {"success": False, "message": "Use the Password button to change your own password."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     target_user.set_password(new_password)
     target_user.save(update_fields=["password"])
 

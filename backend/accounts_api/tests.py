@@ -180,6 +180,19 @@ class CreateStaffUserTests(TestCase):
         target_user.refresh_from_db()
         self.assertTrue(target_user.check_password("NewPass123@"))
 
+    def test_admin_can_reset_own_staff_password_from_staff_screen(self):
+        response = self.client.post(
+            f"/api/auth/staff/{self.admin.id}/password/",
+            {"password": "NewOwnerPass123@"},
+            format="json",
+            HTTP_X_STAFF_USERNAME="Jay.Gallagher",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["success"])
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("NewOwnerPass123@"))
+
     def test_admin_can_delete_staff_user(self):
         target_user = get_user_model().objects.create_user(
             username="Temp.Admin",
