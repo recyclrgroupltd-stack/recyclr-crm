@@ -3,6 +3,7 @@ import re
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
+from django.db.models import Q
 
 from accounts_api.models import CompanyDetails, StaffProfile
 from accounts_api.permissions import ROLE_DEFAULT_PERMISSIONS, normalise_role
@@ -20,6 +21,25 @@ ROLE_TO_GROUP = {
 ALL_ROLE_GROUPS = list(ROLE_TO_GROUP.values()) + ["Admin 1", "Admin 2", "Ops"]
 
 
+def normalise_staff_lookup(value):
+    return "".join(char.lower() for char in str(value or "") if char.isalnum())
+
+
+def staff_lookup_values(*values):
+    lookups = []
+    for value in values:
+        raw_value = str(value or "").strip()
+        if not raw_value:
+            continue
+        lookups.append(raw_value)
+        if "@" in raw_value:
+            lookups.append(raw_value.split("@", 1)[0])
+        dotted_value = raw_value.replace(" ", ".")
+        if dotted_value not in lookups:
+            lookups.append(dotted_value)
+    return lookups
+
+
 def build_company_email(username):
     try:
         domain = CompanyDetails.get_solo().company_email_domain or "recyclrgroup.co.uk"
@@ -30,6 +50,46 @@ def build_company_email(username):
     local_part = re.sub(r"[^a-z0-9._-]+", ".", local_part)
     local_part = re.sub(r"\.+", ".", local_part).strip(".") or "staff"
     return f"{local_part}@{domain}"
+
+
+def find_existing_user(User, username, email):
+    lookup_values = staff_lookup_values(username, email)
+    exact_query = Q()
+    for lookup_value in lookup_values:
+        exact_query |= Q(username__iexact=lookup_value)
+        exact_query |= Q(email__iexact=lookup_value)
+        exact_query |= Q(staff_profile__company_email__iexact=lookup_value)
+
+    if exact_query:
+        user = (
+            User.objects.filter(exact_query)
+            .order_by("-is_superuser", "-is_staff", "id")
+            .first()
+        )
+        if user:
+            return user
+
+    normalized_lookups = {normalise_staff_lookup(value) for value in lookup_values}
+    normalized_lookups.discard("")
+
+    if not normalized_lookups:
+        return None
+
+    for user in User.objects.select_related("staff_profile").order_by("-is_superuser", "-is_staff", "id"):
+        candidate_values = [
+            user.username,
+            user.email,
+            getattr(getattr(user, "staff_profile", None), "company_email", ""),
+        ]
+        for candidate_value in candidate_values:
+            if normalise_staff_lookup(candidate_value) in normalized_lookups:
+                return user
+            if "@" in str(candidate_value):
+                candidate_local_part = str(candidate_value).split("@", 1)[0]
+                if normalise_staff_lookup(candidate_local_part) in normalized_lookups:
+                    return user
+
+    return None
 
 
 class Command(BaseCommand):
@@ -63,7 +123,22 @@ class Command(BaseCommand):
 
         email = (options["email"] or "").strip() or build_company_email(username)
         User = get_user_model()
-        user, created = User.objects.get_or_create(username=username)
+        user = find_existing_user(User, username, email)
+        created = False
+        if user is None:
+            user, created = User.objects.get_or_create(username=username)
+
+        if user.username != username:
+            username_conflict = User.objects.filter(username__iexact=username).exclude(pk=user.pk).exists()
+            if username_conflict:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Matched existing user '{user.username}', but kept that username because "
+                        f"'{username}' is already used."
+                    )
+                )
+            else:
+                user.username = username
 
         user.set_password(password)
         user.email = email

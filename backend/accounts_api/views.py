@@ -5,6 +5,7 @@ import string
 
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
+from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -44,6 +45,26 @@ ALL_ROLE_GROUPS = [
     "Admin 2",
     "Ops",
 ]
+
+
+def normalise_staff_lookup(value):
+    return "".join(char.lower() for char in str(value or "") if char.isalnum())
+
+
+def staff_lookup_values(value):
+    raw_value = str(value or "").strip()
+    if not raw_value:
+        return []
+
+    values = [raw_value]
+    if "@" in raw_value:
+        values.append(raw_value.split("@", 1)[0])
+
+    dotted_local_part = raw_value.replace(" ", ".")
+    if dotted_local_part not in values:
+        values.append(dotted_local_part)
+
+    return [lookup for lookup in values if lookup]
 
 
 def get_staff_role(user):
@@ -210,18 +231,51 @@ def get_request_user_from_username(username):
     if not username:
         return None
 
-    try:
-        return User.objects.prefetch_related("groups", "permission_overrides").get(
-            username__iexact=username,
-            is_staff=True,
+    lookup_values = staff_lookup_values(username)
+    exact_query = Q()
+    for lookup_value in lookup_values:
+        exact_query |= Q(username__iexact=lookup_value)
+        exact_query |= Q(email__iexact=lookup_value)
+        exact_query |= Q(staff_profile__company_email__iexact=lookup_value)
+
+    if exact_query:
+        user = (
+            User.objects.filter(exact_query, is_staff=True)
+            .prefetch_related("groups", "permission_overrides")
+            .order_by("-is_superuser", "id")
+            .first()
         )
-    except User.DoesNotExist:
-        normalized_username = "".join(char.lower() for char in username if char.isalnum())
-        for user in User.objects.filter(is_staff=True).prefetch_related("groups", "permission_overrides"):
-            normalized_candidate = "".join(char.lower() for char in user.username if char.isalnum())
-            if normalized_candidate == normalized_username:
-                return user
+        if user:
+            return user
+
+    normalized_lookups = {normalise_staff_lookup(value) for value in lookup_values}
+    normalized_lookups.discard("")
+
+    if not normalized_lookups:
         return None
+
+    staff_users = (
+        User.objects.filter(is_staff=True)
+        .select_related("staff_profile")
+        .prefetch_related("groups", "permission_overrides")
+        .order_by("-is_superuser", "id")
+    )
+
+    for user in staff_users:
+        candidate_values = [
+            user.username,
+            user.email,
+            getattr(getattr(user, "staff_profile", None), "company_email", ""),
+        ]
+        for candidate_value in candidate_values:
+            if normalise_staff_lookup(candidate_value) in normalized_lookups:
+                return user
+            if "@" in str(candidate_value):
+                candidate_local_part = str(candidate_value).split("@", 1)[0]
+                if normalise_staff_lookup(candidate_local_part) in normalized_lookups:
+                    return user
+
+    return None
 
 
 def get_request_user_from_request(request):
