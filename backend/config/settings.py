@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "staff_calendar",
     "containers.apps.ContainersConfig",
     "crm_email.apps.CrmEmailConfig",
+    "personnel.apps.PersonnelConfig",
 ]
 
 MIDDLEWARE = [

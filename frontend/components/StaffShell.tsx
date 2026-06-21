@@ -22,6 +22,7 @@ import {
   getStoredUser,
   roleLabel,
 } from "../lib/auth";
+import { apiPath } from "../lib/apiBase";
 
 type StaffShellProps = {
   title: string;
@@ -156,6 +157,7 @@ const financeItems: NavItem[] = [
 
 const teamItems: NavItem[] = [
   { label: "Staff", href: "/staff", icon: "U" },
+  { label: "Personnel", href: "/personnel", icon: "P" },
 ];
 
 const settingsItems: NavItem[] = [
@@ -394,6 +396,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         if (item.href === "/purchase-orders") return canViewPurchaseOrders(currentUser);
         if (item.href === "/reporting") return canViewReporting(currentUser);
         if (item.href === "/staff") return canViewStaff(currentUser);
+        if (item.href === "/personnel") return canManageUsers(currentUser);
         if (item.href === "/containers") return canViewServices(currentUser);
         if (item.href === "/containers/maintenance") return canViewServices(currentUser);
         if (item.href === "/settings/company-details") return canManageUsers(currentUser);
@@ -440,8 +443,8 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     try {
       const headers = getAuthHeaders();
       const [response, calendarResponse] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/purchase-orders/notifications/", { headers }),
-        fetch("http://127.0.0.1:8000/api/staff-calendar/summary/", { headers }),
+        fetch(apiPath("/api/purchase-orders/notifications/"), { headers }),
+        fetch(apiPath("/api/staff-calendar/summary/"), { headers }),
       ]);
       const data = await response.json();
       if (response.ok && data.success) {
@@ -464,7 +467,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadChatSummary = useCallback(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/staff-chat/summary/", {
+      const response = await fetch(apiPath("/api/staff-chat/summary/"), {
         headers: staffHeader(),
       });
       const data = await response.json();
@@ -478,7 +481,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadChatUsers = useCallback(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/staff-chat/users/", {
+      const response = await fetch(apiPath("/api/staff-chat/users/"), {
         headers: staffHeader(),
       });
       const data = await response.json();
@@ -492,7 +495,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadChatCustomers = useCallback(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/customers/");
+      const response = await fetch(apiPath("/api/customers/"));
       const data = await response.json();
       if (response.ok && Array.isArray(data)) {
         setChatCustomers(data);
@@ -511,14 +514,14 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     async function loadGlobalSearchData() {
       try {
         const requests: Promise<Response>[] = [
-          fetch("http://127.0.0.1:8000/api/customers/", {
+          fetch(apiPath("/api/customers/"), {
             headers: getAuthHeaders(),
           }),
         ];
 
         if (canSearchStaff) {
           requests.push(
-            fetch("http://127.0.0.1:8000/api/auth/staff/", {
+            fetch(apiPath("/api/auth/staff/"), {
               headers: getAuthHeaders(),
             })
           );
@@ -548,7 +551,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   const loadChatConversations = useCallback(async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/staff-chat/conversations/", {
+      const response = await fetch(apiPath("/api/staff-chat/conversations/"), {
         headers: staffHeader(),
       });
       const data = await response.json();
@@ -564,7 +567,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     try {
       setChatError("");
       setChatMenu(null);
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${conversationId}/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${conversationId}/`), {
         headers: staffHeader(),
       });
       const data = await response.json();
@@ -584,7 +587,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     if (!activeChat || !chatMessage.trim()) return;
     try {
       setChatError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${activeChat.id}/send/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${activeChat.id}/send/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -608,7 +611,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     }
     try {
       setChatError("");
-      const response = await fetch("http://127.0.0.1:8000/api/staff-chat/conversations/", {
+      const response = await fetch(apiPath("/api/staff-chat/conversations/"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -647,7 +650,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     }
     try {
       setChatError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${conversation.id}/${action}/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${conversation.id}/${action}/`), {
         method: "POST",
         headers: staffHeader(),
       });
@@ -777,6 +780,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
       { path: "/purchase-orders", allowed: canViewPurchaseOrders(currentUser) },
       { path: "/reporting", allowed: canViewReporting(currentUser) },
       { path: "/staff", allowed: canViewStaff(currentUser) },
+      { path: "/personnel", allowed: canManageUsers(currentUser) },
       { path: "/settings", allowed: canManageUsers(currentUser) },
     ];
     const blocked = restrictedRoutes.find(
@@ -787,7 +791,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   async function markNotificationRead(notificationId: number) {
     try {
-      await fetch(`http://127.0.0.1:8000/api/purchase-orders/notifications/${notificationId}/read/`, {
+      await fetch(apiPath(`/api/purchase-orders/notifications/${notificationId}/read/`), {
         method: "POST",
         headers: getAuthHeaders(),
       });
@@ -799,7 +803,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   async function markAllNotificationsRead() {
     try {
-      await fetch("http://127.0.0.1:8000/api/purchase-orders/notifications/mark-all-read/", {
+      await fetch(apiPath("/api/purchase-orders/notifications/mark-all-read/"), {
         method: "POST",
         headers: getAuthHeaders(),
       });
@@ -918,7 +922,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
     if (canViewStaff(currentUser)) {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/auth/staff/", {
+        const response = await fetch(apiPath("/api/auth/staff/"), {
           headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -973,7 +977,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
     try {
       setChatError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${activeChat.id}/participants/add/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${activeChat.id}/participants/add/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -997,7 +1001,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
     try {
       setChatError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${activeChat.id}/participants/remove/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${activeChat.id}/participants/remove/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1026,7 +1030,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
     try {
       setChatError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/staff-chat/conversations/${activeChat.id}/leave/`, {
+      const response = await fetch(apiPath(`/api/staff-chat/conversations/${activeChat.id}/leave/`), {
         method: "POST",
         headers: staffHeader(),
       });

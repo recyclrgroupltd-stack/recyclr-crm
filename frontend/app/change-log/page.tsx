@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "@/components/StaffShell";
+import { apiPath } from "@/lib/apiBase";
 import { getAuthHeaders } from "@/lib/auth";
 
 type ChangeLogRow = {
@@ -75,7 +76,7 @@ export default function ChangeLogPage() {
     params.set("limit", "150");
     if (search.trim()) params.set("search", search.trim());
 
-    const response = await fetch(`http://127.0.0.1:8000/api/containers/change-log/?${params.toString()}`, {
+    const response = await fetch(apiPath(`/api/containers/change-log/?${params.toString()}`), {
       headers: authHeaders(),
     });
     const data = await response.json();
