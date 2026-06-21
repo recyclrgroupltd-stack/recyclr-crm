@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from customers.models import Site
 from services.models import Service
 from accounts_api.models import CompanyDetails
+from customers.models import CustomerActivity
 
 from .models import (
     BIN_SIZE_CHOICES,
@@ -545,4 +546,110 @@ def maintenance_list(request):
             "event_id": event.id,
         },
         status=201,
+    )
+
+
+def change_log(request):
+    if request.method != "GET":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    source = (request.GET.get("source") or "all").strip().lower()
+    search = (request.GET.get("search") or "").strip().lower()
+    try:
+        limit = min(max(int(request.GET.get("limit") or 100), 1), 250)
+    except (TypeError, ValueError):
+        limit = 100
+
+    rows = []
+
+    if source in ["all", "container"]:
+        events = ContainerMaintenanceEvent.objects.select_related(
+            "container__site__customer"
+        ).order_by("-created_at", "-id")[:300]
+        for event in events:
+            container = event.container
+            site = container.site
+            customer = site.customer if site and site.customer_id else None
+            rows.append(
+                {
+                    "id": f"container-{event.id}",
+                    "source": "container",
+                    "source_label": "Container",
+                    "title": event.title,
+                    "description": event.notes,
+                    "actor": event.reported_by,
+                    "created_at": event.created_at.isoformat() if event.created_at else "",
+                    "object_id": container.id,
+                    "object_label": container.container_uid,
+                    "object_detail": " - ".join(
+                        item
+                        for item in [
+                            container.get_waste_stream_display(),
+                            container.get_bin_size_display(),
+                            site.site_name if site else "In stock",
+                            customer.business_name if customer else "",
+                        ]
+                        if item
+                    ),
+                    "status_label": event.get_status_display(),
+                    "href": "/containers",
+                }
+            )
+
+    if source in ["all", "customer"]:
+        activities = CustomerActivity.objects.select_related("customer", "site").order_by("-created_at", "-id")[:300]
+        for activity in activities:
+            rows.append(
+                {
+                    "id": f"customer-{activity.id}",
+                    "source": "customer",
+                    "source_label": "Customer",
+                    "title": activity.title,
+                    "description": activity.description,
+                    "actor": activity.created_by,
+                    "created_at": activity.created_at.isoformat() if activity.created_at else "",
+                    "object_id": activity.customer_id,
+                    "object_label": activity.customer.business_name if activity.customer_id else "Customer",
+                    "object_detail": activity.site.site_name if activity.site_id else activity.get_activity_type_display(),
+                    "status_label": activity.get_activity_type_display(),
+                    "href": f"/customers/{activity.customer_id}" if activity.customer_id else "/customers",
+                }
+            )
+
+    if search:
+        rows = [
+            row
+            for row in rows
+            if search
+            in " ".join(
+                [
+                    row["source_label"],
+                    row["title"],
+                    row["description"],
+                    row["actor"],
+                    row["object_label"],
+                    row["object_detail"],
+                    row["status_label"],
+                ]
+            ).lower()
+        ]
+
+    rows.sort(key=lambda row: row["created_at"] or "", reverse=True)
+    rows = rows[:limit]
+
+    return JsonResponse(
+        {
+            "success": True,
+            "rows": rows,
+            "sources": [
+                {"value": "all", "label": "All changes"},
+                {"value": "container", "label": "Containers"},
+                {"value": "customer", "label": "Customers"},
+            ],
+            "summary": {
+                "total": len(rows),
+                "containers": sum(1 for row in rows if row["source"] == "container"),
+                "customers": sum(1 for row in rows if row["source"] == "customer"),
+            },
+        }
     )

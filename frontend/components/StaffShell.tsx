@@ -123,6 +123,7 @@ type ChatConversation = {
 const coreItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "D" },
   { label: "CRM Map", href: "/core-map", icon: "M" },
+  { label: "Change Log", href: "/change-log", icon: "A" },
 ];
 
 const salesItems: NavItem[] = [
@@ -378,6 +379,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     function canViewItem(item: NavItem) {
         if (item.href === "/dashboard") return canViewDashboard(currentUser);
         if (item.href === "/core-map") return canViewDashboard(currentUser);
+        if (item.href === "/change-log") return canViewReporting(currentUser);
         if (item.href === "/leads") return canViewLeads(currentUser);
         if (item.href === "/quotes") return canViewQuotes(currentUser);
         if (item.href === "/contract-signing") return canViewQuotes(currentUser);
@@ -760,6 +762,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     if (!authResolved || !currentUser) return;
     const restrictedRoutes = [
       { path: "/dashboard", allowed: canViewDashboard(currentUser) },
+      { path: "/change-log", allowed: canViewReporting(currentUser) },
       { path: "/leads", allowed: canViewLeads(currentUser) },
       { path: "/quotes", allowed: canViewQuotes(currentUser) },
       { path: "/customers", allowed: canViewCustomers(currentUser) },

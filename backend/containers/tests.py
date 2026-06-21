@@ -2,6 +2,8 @@ import json
 
 from django.test import Client, TestCase
 
+from customers.models import Customer, create_customer_activity
+
 from .models import Container, ContainerMaintenanceEvent
 
 
@@ -58,3 +60,27 @@ class ContainerLifecycleTests(TestCase):
         data = response.json()["container"]
         self.assertEqual(data["eol_at"], "")
         self.assertEqual(data["history"][0]["notes"], "Inspected and repaired.")
+
+    def test_global_change_log_includes_container_and_customer_activity(self):
+        ContainerMaintenanceEvent.objects.create(
+            container=self.container,
+            status=ContainerMaintenanceEvent.STATUS_EOL,
+            title="Marked EOL",
+            notes="Cracked body.",
+            reported_by="Jay",
+        )
+        customer = Customer.objects.create(business_name="Acme Ltd")
+        create_customer_activity(
+            customer=customer,
+            activity_type="note",
+            title="Customer note added",
+            description="Called about extra bins.",
+            created_by="Ian",
+        )
+
+        response = self.client.get("/api/containers/change-log/")
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["rows"]
+        self.assertTrue(any(row["source"] == "container" and row["description"] == "Cracked body." for row in rows))
+        self.assertTrue(any(row["source"] == "customer" and row["object_label"] == "Acme Ltd" for row in rows))
