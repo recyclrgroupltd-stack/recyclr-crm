@@ -126,7 +126,7 @@ export function getAuthHeaders(extraHeaders?: Record<string, string>) {
   }
 
   return {
-    ...(token ? { Authorization: `Bearer ${token}`, "X-Staff-Token": token } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(username ? { "X-Staff-Username": username } : {}),
     ...(extraHeaders || {}),
   };
