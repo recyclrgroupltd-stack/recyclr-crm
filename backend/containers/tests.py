@@ -50,7 +50,11 @@ class ContainerLifecycleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.container.refresh_from_db()
         self.assertEqual(self.container.status, Container.STATUS_INACTIVE)
+        self.assertIsNone(self.container.eol_at)
         event = ContainerMaintenanceEvent.objects.get(container=self.container)
         self.assertEqual(event.status, ContainerMaintenanceEvent.STATUS_RESOLVED)
         self.assertEqual(event.notes, "Inspected and repaired.")
         self.assertEqual(event.reported_by, "Jay")
+        data = response.json()["container"]
+        self.assertEqual(data["eol_at"], "")
+        self.assertEqual(data["history"][0]["notes"], "Inspected and repaired.")

@@ -31,6 +31,18 @@ type ContainerRow = {
   delivered_at: string;
   eol_at: string;
   notes: string;
+  history?: ContainerHistory[];
+};
+
+type ContainerHistory = {
+  id: number;
+  title: string;
+  notes: string;
+  status: string;
+  status_label: string;
+  reported_by: string;
+  created_at: string;
+  resolved_at: string;
 };
 
 type Summary = {
@@ -119,6 +131,7 @@ export default function ContainersPage() {
   const [selectedContainer, setSelectedContainer] = useState<ContainerRow | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedNotes, setSelectedNotes] = useState("");
+  const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -196,10 +209,24 @@ export default function ContainersPage() {
     }
   }
 
-  function openContainer(row: ContainerRow) {
+  async function openContainer(row: ContainerRow) {
     setSelectedContainer(row);
     setSelectedStatus(row.status);
     setSelectedNotes(row.notes || "");
+    setShowHistory(false);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/containers/${row.id}/`, {
+        headers: authHeaders(),
+      });
+      const data = await response.json();
+      if (response.ok && data.success && data.container) {
+        setSelectedContainer(data.container);
+        setSelectedStatus(data.container.status || row.status);
+        setSelectedNotes(data.container.notes || "");
+      }
+    } catch {
+      // Keep the already-open row available if the detail refresh fails.
+    }
   }
 
   async function saveContainer() {
@@ -451,9 +478,14 @@ export default function ContainersPage() {
                     {selectedContainer.waste_stream_label} - {selectedContainer.bin_size_label}
                   </p>
                 </div>
-                <button onClick={() => setSelectedContainer(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">
-                  Close
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowHistory((current) => !current)} className="rounded-lg border border-violet-200 px-4 py-2 text-sm font-bold text-violet-700">
+                    Change Log
+                  </button>
+                  <button onClick={() => setSelectedContainer(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700">
+                    Close
+                  </button>
+                </div>
               </div>
 
               <div className="mt-6 grid gap-5 md:grid-cols-[220px_1fr]">
@@ -527,6 +559,30 @@ export default function ContainersPage() {
                   <button onClick={saveContainer} disabled={saving} className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700 disabled:bg-slate-300">
                     {saving ? "Saving..." : "Save Container"}
                   </button>
+
+                  {showHistory ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-sm font-black">Change Log</div>
+                      <div className="mt-3 space-y-3">
+                        {(selectedContainer.history || []).length === 0 ? (
+                          <div className="text-sm font-semibold text-slate-500">No history saved for this bin yet.</div>
+                        ) : (
+                          (selectedContainer.history || []).map((event) => (
+                            <div key={event.id} className="rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="font-black">{event.title}</div>
+                                <div className="text-xs font-bold text-slate-500">{formatDate(event.created_at)}</div>
+                              </div>
+                              {event.notes ? <div className="mt-2 text-sm font-semibold text-slate-700">{event.notes}</div> : null}
+                              <div className="mt-2 text-xs font-bold text-slate-500">
+                                {event.reported_by ? `Changed by ${event.reported_by}` : "Changed by unknown staff"}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

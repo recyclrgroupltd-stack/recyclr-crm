@@ -42,7 +42,23 @@ def _container_qr_url(container):
     return f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={quote(container.qr_payload)}"
 
 
-def _serialize_container(container):
+def _serialize_container_history(container):
+    return [
+        {
+            "id": event.id,
+            "title": event.title,
+            "notes": event.notes,
+            "status": event.status,
+            "status_label": event.get_status_display(),
+            "reported_by": event.reported_by,
+            "created_at": event.created_at.isoformat() if event.created_at else "",
+            "resolved_at": event.resolved_at.isoformat() if event.resolved_at else "",
+        }
+        for event in container.maintenance_events.all().order_by("-created_at", "-id")
+    ]
+
+
+def _serialize_container(container, include_history=False):
     site = container.site
     customer = site.customer if site and site.customer_id else None
     service = container.service
@@ -76,10 +92,11 @@ def _serialize_container(container):
         "qr_url": _container_qr_url(container),
         "assigned_at": container.assigned_at.isoformat() if container.assigned_at else "",
         "delivered_at": container.delivered_at.isoformat() if container.delivered_at else "",
-        "eol_at": container.eol_at.isoformat() if container.eol_at else "",
+        "eol_at": container.eol_at.isoformat() if container.status == Container.STATUS_EOL and container.eol_at else "",
         "notes": container.notes or "",
         "created_at": container.created_at.isoformat() if container.created_at else "",
         "updated_at": container.updated_at.isoformat() if container.updated_at else "",
+        "history": _serialize_container_history(container) if include_history else [],
     }
 
 
@@ -377,7 +394,7 @@ def container_detail(request, container_id):
     container = get_object_or_404(Container.objects.select_related("site__customer", "service"), pk=container_id)
 
     if request.method == "GET":
-        return JsonResponse({"success": True, "container": _serialize_container(container)})
+        return JsonResponse({"success": True, "container": _serialize_container(container, include_history=True)})
 
     if request.method != "POST":
         return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
@@ -404,10 +421,11 @@ def container_detail(request, container_id):
     previous_site_id = container.site_id
     previous_status = container.status
 
+    if previous_status == Container.STATUS_EOL and status != Container.STATUS_EOL:
+        container.eol_at = None
+
     if status == Container.STATUS_INACTIVE:
         container.status = status
-        if previous_status == Container.STATUS_EOL:
-            container.eol_at = None
     elif status == Container.STATUS_EOL:
         container.status = status
         container.eol_at = container.eol_at or timezone.now()
@@ -457,7 +475,7 @@ def container_detail(request, container_id):
         {
             "success": True,
             "message": f"Container updated.{replacement_message}",
-            "container": _serialize_container(container),
+            "container": _serialize_container(container, include_history=True),
             "replacement": _serialize_container(replacement) if replacement else None,
         }
     )
