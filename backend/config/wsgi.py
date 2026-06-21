@@ -31,7 +31,7 @@ def _cors_headers(origin):
         (
             "Access-Control-Allow-Headers",
             "accept, authorization, content-type, user-agent, x-csrftoken, "
-            "x-requested-with, x-staff-username",
+            "x-requested-with, x-staff-token, x-staff-username",
         ),
         ("Access-Control-Expose-Headers", "X-Recyclr-Cors"),
         ("X-Recyclr-Cors", "wsgi"),
