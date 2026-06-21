@@ -46,6 +46,15 @@ def _serialize_container(container):
     site = container.site
     customer = site.customer if site and site.customer_id else None
     service = container.service
+    location_label = site.site_name if site else ""
+    location_detail = customer.business_name if customer else ""
+
+    if container.status == Container.STATUS_EOL:
+        location_label = "EOL"
+        location_detail = "End of life"
+    elif not location_label:
+        location_label = "In stock"
+        location_detail = "Not currently at a customer site"
 
     return {
         "id": container.id,
@@ -60,6 +69,8 @@ def _serialize_container(container):
         "site_name": site.site_name if site else "",
         "customer_id": customer.id if customer else None,
         "customer_name": customer.business_name if customer else "",
+        "location_label": location_label,
+        "location_detail": location_detail,
         "service_id": service.id if service else None,
         "qr_payload": container.qr_payload,
         "qr_url": _container_qr_url(container),
@@ -379,6 +390,13 @@ def container_detail(request, container_id):
     if status not in {value for value, _ in Container.STATUS_CHOICES}:
         return JsonResponse({"success": False, "message": "Invalid container status."}, status=400)
 
+    eol_reactivation_reason = str(payload.get("eol_reactivation_reason") or "").strip()
+    if container.status == Container.STATUS_EOL and status != Container.STATUS_EOL and not eol_reactivation_reason:
+        return JsonResponse(
+            {"success": False, "message": "Add a reason before changing an EOL container back to another status."},
+            status=400,
+        )
+
     if "notes" in payload:
         container.notes = str(payload.get("notes") or "")
 
@@ -388,6 +406,8 @@ def container_detail(request, container_id):
 
     if status == Container.STATUS_INACTIVE:
         container.status = status
+        if previous_status == Container.STATUS_EOL:
+            container.eol_at = None
     elif status == Container.STATUS_EOL:
         container.status = status
         container.eol_at = container.eol_at or timezone.now()
@@ -406,6 +426,15 @@ def container_detail(request, container_id):
     try:
         with transaction.atomic():
             container.save()
+            if previous_status == Container.STATUS_EOL and status != Container.STATUS_EOL:
+                ContainerMaintenanceEvent.objects.create(
+                    container=container,
+                    status=ContainerMaintenanceEvent.STATUS_RESOLVED,
+                    title=f"EOL status changed to {_choice_label(Container.STATUS_CHOICES, status)}",
+                    notes=eol_reactivation_reason,
+                    reported_by=_staff_username(request),
+                    resolved_at=timezone.now(),
+                )
             if (
                 status == Container.STATUS_EOL
                 and previous_site_id

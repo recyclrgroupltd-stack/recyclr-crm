@@ -22,6 +22,8 @@ type ContainerRow = {
   site_id: number | null;
   site_name: string;
   customer_name: string;
+  location_label?: string;
+  location_detail?: string;
   service_id: number | null;
   qr_payload: string;
   qr_url: string;
@@ -90,6 +92,18 @@ function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-GB");
+}
+
+function containerLocationLabel(container: ContainerRow) {
+  if (container.location_label) return container.location_label;
+  if (container.status === "eol") return "EOL";
+  return container.site_name || "In stock";
+}
+
+function containerLocationDetail(container: ContainerRow) {
+  if (container.location_detail) return container.location_detail;
+  if (container.status === "eol") return "End of life";
+  return container.customer_name || "Not currently at a customer site";
 }
 
 export default function ContainersPage() {
@@ -192,6 +206,16 @@ export default function ContainersPage() {
     if (!selectedContainer) return;
 
     try {
+      let eolReactivationReason = "";
+      if (selectedContainer.status === "eol" && selectedStatus !== "eol") {
+        const reason = window.prompt("Why is this container being changed from EOL?");
+        if (!reason || !reason.trim()) {
+          setError("Add a reason before changing an EOL container back to another status.");
+          return;
+        }
+        eolReactivationReason = reason.trim();
+      }
+
       setSaving(true);
       setMessage("");
       setError("");
@@ -204,6 +228,7 @@ export default function ContainersPage() {
         body: JSON.stringify({
           status: selectedStatus,
           notes: selectedNotes,
+          eol_reactivation_reason: eolReactivationReason,
         }),
       });
       const data = await response.json();
@@ -399,8 +424,8 @@ export default function ContainersPage() {
                             <td className="px-4 py-3 font-bold">{row.bin_size_label}</td>
                             <td className="px-4 py-3"><StatusPill status={row.status} label={row.status_label} /></td>
                             <td className="px-4 py-3">
-                              <div className="font-bold">{row.site_name || "In stock"}</div>
-                              <div className="text-xs text-slate-500">{row.customer_name || ""}</div>
+                              <div className="font-bold">{containerLocationLabel(row)}</div>
+                              <div className="text-xs text-slate-500">{containerLocationDetail(row)}</div>
                             </td>
                             <td className="px-4 py-3">
                               <img src={row.qr_url} alt={`${row.container_uid} QR`} className="h-14 w-14 rounded border border-slate-200 bg-white p-1" />
@@ -434,9 +459,15 @@ export default function ContainersPage() {
               <div className="mt-6 grid gap-5 md:grid-cols-[220px_1fr]">
                 <div className="rounded-lg border border-slate-200 p-4 text-center">
                   <img src={selectedContainer.qr_url} alt={`${selectedContainer.container_uid} QR`} className="mx-auto h-44 w-44 rounded border border-slate-200 bg-white p-2" />
-                  <button onClick={() => printQrLabel(selectedContainer)} className="mt-4 w-full rounded-lg bg-violet-700 px-4 py-3 text-sm font-black text-white hover:bg-violet-800">
-                    Print QR Label
-                  </button>
+                  {selectedContainer.status === "eol" ? (
+                    <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-black text-red-700">
+                      QR visible. Printing disabled for EOL containers.
+                    </div>
+                  ) : (
+                    <button onClick={() => printQrLabel(selectedContainer)} className="mt-4 w-full rounded-lg bg-violet-700 px-4 py-3 text-sm font-black text-white hover:bg-violet-800">
+                      Print QR Label
+                    </button>
+                  )}
                   <p className="mt-3 text-xs font-semibold text-slate-500">
                     Label size: {labelSettings.width_mm}mm x {labelSettings.height_mm}mm
                   </p>
@@ -445,8 +476,8 @@ export default function ContainersPage() {
                 <div className="space-y-4">
                   <div className="rounded-lg bg-slate-50 p-4">
                     <div className="text-xs font-black uppercase tracking-wide text-slate-400">Current Location</div>
-                    <div className="mt-2 text-lg font-black">{selectedContainer.site_name || "In stock"}</div>
-                    <div className="text-sm font-semibold text-slate-500">{selectedContainer.customer_name || "Not currently at a customer site"}</div>
+                    <div className="mt-2 text-lg font-black">{containerLocationLabel(selectedContainer)}</div>
+                    <div className="text-sm font-semibold text-slate-500">{containerLocationDetail(selectedContainer)}</div>
                   </div>
 
                   <div>
