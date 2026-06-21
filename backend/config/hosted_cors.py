@@ -41,7 +41,7 @@ class HostedCorsMiddleware:
             )
             response["Access-Control-Allow-Headers"] = (
                 "accept, authorization, content-type, user-agent, x-csrftoken, "
-                "x-requested-with, x-staff-username"
+                "x-requested-with, x-staff-token, x-staff-username"
             )
             response["Access-Control-Expose-Headers"] = "X-Recyclr-Cors"
             response["X-Recyclr-Cors"] = "middleware"
