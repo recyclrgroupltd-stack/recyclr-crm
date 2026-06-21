@@ -1,127 +1,84 @@
-"use client";
+import Link from "next/link";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiPath, friendlyApiError, readApiPayload } from "@/lib/apiBase";
-import { clearStaffSession } from "@/lib/auth";
+const portalLinks = [
+  { label: "Staff", href: "/login" },
+  { label: "Haulier", href: "/haulier-portal/login" },
+  { label: "Customer", href: "/customer-portal/login" },
+];
 
-export default function LoginPage() {
-  const router = useRouter();
+const services = [
+  "Commercial waste collections",
+  "Recycling services",
+  "Container supply and tracking",
+  "Customer service management",
+];
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    clearStaffSession();
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch(apiPath("/api/auth/login/"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
-      });
-
-      const data = await readApiPayload(response, "Login failed.");
-
-      if (!response.ok || !data.success) {
-        setError(data.message || "Login failed.");
-        setLoading(false);
-        return;
-      }
-
-      const returnedUser = data.user || {};
-      const resolvedUsername = data.username || returnedUser.username || username;
-      const resolvedRole = data.role || returnedUser.role || "staff";
-      const resolvedToken = data.token || "";
-
-      if (!resolvedToken) {
-        throw new Error("Login did not return a secure staff token.");
-      }
-
-      const storedUser = {
-        id: returnedUser.id || 0,
-        username: resolvedUsername,
-        is_staff: Boolean(returnedUser.is_staff ?? true),
-        is_superuser: Boolean(returnedUser.is_superuser ?? false),
-        is_active: Boolean(returnedUser.is_active ?? true),
-        role: resolvedRole,
-        permissions: returnedUser.permissions || data.permissions || {},
-      };
-
-      localStorage.setItem("staff_token", resolvedToken);
-      localStorage.setItem("staff_username", resolvedUsername);
-      localStorage.setItem("username", resolvedUsername);
-      localStorage.setItem("staff_role", resolvedRole);
-      localStorage.setItem("recyclrUser", JSON.stringify(storedUser));
-      router.replace("/dashboard");
-    } catch (err) {
-      setError(friendlyApiError(err));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-  }
-
+export default function HomePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#412a8a]">
-      <div className="w-full max-w-md rounded-2xl border border-white/20 bg-white/10 p-10 shadow-xl backdrop-blur-lg">
-        <div className="mb-8 flex flex-col items-center">
-          <img
-            src="/recyclrcore-logo.png"
-            alt="Recyclr Core"
-            className="mb-6 w-72"
-          />
-        </div>
+    <main className="min-h-screen bg-slate-950 text-white">
+      <section className="relative min-h-[82vh] overflow-hidden">
+        <img
+          src="/recyclr-home-hero.png"
+          alt="Recyclr Group recycling operations"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-slate-950/65" />
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div>
-            <label className="mb-2 block text-sm text-white">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-lg border border-white/20 bg-white/20 px-4 py-3 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white"
-              placeholder="Enter username"
-            />
-          </div>
+        <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <img src="/recyclrcore-logo.png" alt="Recyclr Group Ltd" className="h-auto w-36 sm:w-44" />
+            <span className="sr-only">Recyclr Group Ltd</span>
+          </Link>
 
-          <div>
-            <label className="mb-2 block text-sm text-white">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-white/20 bg-white/20 px-4 py-3 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white"
-              placeholder="Enter password"
-            />
-          </div>
+          <nav className="flex items-center gap-2">
+            {portalLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md border border-white/25 bg-white/10 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-slate-950 sm:px-4 sm:text-sm"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </header>
 
-          {error ? (
-            <div className="rounded-lg border border-red-300/30 bg-red-500/20 px-4 py-3 text-sm text-white">
-              {error}
+        <div className="relative z-10 mx-auto flex max-w-7xl px-5 pb-12 pt-16 sm:px-8 sm:pt-24 lg:pt-32">
+          <div className="max-w-3xl">
+            <p className="text-sm font-black uppercase tracking-[0.22em] text-lime-300">Waste and recycling services</p>
+            <h1 className="mt-5 text-5xl font-black leading-tight text-white sm:text-6xl lg:text-7xl">
+              Recyclr Group Ltd
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg font-semibold leading-8 text-white/85 sm:text-xl">
+              Reliable commercial waste collections, recycling support, and container management for businesses that need a cleaner way to operate.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link href="/customer-portal/login" className="rounded-md bg-lime-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-lime-200">
+                Customer Portal
+              </Link>
+              <Link href="/haulier-portal/login" className="rounded-md border border-white/30 bg-white/10 px-5 py-3 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-slate-950">
+                Haulier Portal
+              </Link>
             </div>
-          ) : null}
+          </div>
+        </div>
+      </section>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-white py-3 font-semibold text-[#412a8a] transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? "Signing in..." : "Login"}
-          </button>
-        </form>
-      </div>
+      <section className="bg-white px-5 py-10 text-slate-950 sm:px-8">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">What we do</p>
+            <h2 className="mt-3 text-3xl font-black">Waste operations with clear account support.</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {services.map((service) => (
+              <div key={service} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="text-base font-black">{service}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
