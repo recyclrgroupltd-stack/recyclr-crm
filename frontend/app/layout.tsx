@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BackendFetchBridge } from "@/components/BackendFetchBridge";
+import { PenTextFieldFocus } from "@/components/PenTextFieldFocus";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <BackendFetchBridge />
+        <PenTextFieldFocus />
         {children}
       </body>
     </html>
