@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -136,6 +137,125 @@ class StaffSession {
   }
 }
 
+class StylusTextField extends StatefulWidget {
+  const StylusTextField({
+    super.key,
+    required this.controller,
+    this.keyboardType,
+    this.decoration,
+    this.obscureText = false,
+    this.textInputAction,
+    this.onChanged,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final InputDecoration? decoration;
+  final bool obscureText;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  State<StylusTextField> createState() => _StylusTextFieldState();
+}
+
+class _StylusTextFieldState extends State<StylusTextField> {
+  final focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  void focusForStylus(PointerDeviceKind kind) {
+    if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
+      focusNode.requestFocus();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerHover: (event) => focusForStylus(event.kind),
+      onPointerDown: (event) => focusForStylus(event.kind),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: focusNode,
+        keyboardType: widget.keyboardType,
+        decoration: widget.decoration,
+        obscureText: widget.obscureText,
+        textInputAction: widget.textInputAction,
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+      ),
+    );
+  }
+}
+
+class StylusTextFormField extends StatefulWidget {
+  const StylusTextFormField({
+    super.key,
+    required this.controller,
+    this.keyboardType,
+    this.decoration,
+    this.validator,
+    this.minLines,
+    this.maxLines = 1,
+    this.readOnly = false,
+    this.onTap,
+  });
+
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final InputDecoration? decoration;
+  final FormFieldValidator<String>? validator;
+  final int? minLines;
+  final int? maxLines;
+  final bool readOnly;
+  final VoidCallback? onTap;
+
+  @override
+  State<StylusTextFormField> createState() => _StylusTextFormFieldState();
+}
+
+class _StylusTextFormFieldState extends State<StylusTextFormField> {
+  final focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  void focusForStylus(PointerDeviceKind kind) {
+    if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
+      focusNode.requestFocus();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerHover: (event) => focusForStylus(event.kind),
+      onPointerDown: (event) => focusForStylus(event.kind),
+      child: TextFormField(
+        controller: widget.controller,
+        focusNode: focusNode,
+        keyboardType: widget.keyboardType,
+        decoration: widget.decoration,
+        validator: widget.validator,
+        minLines: widget.minLines,
+        maxLines: widget.maxLines,
+        readOnly: widget.readOnly,
+        onTap: widget.onTap,
+      ),
+    );
+  }
+}
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.onLoggedIn});
 
@@ -265,7 +385,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    TextField(
+                    StylusTextField(
                       controller: backendController,
                       keyboardType: TextInputType.url,
                       decoration: const InputDecoration(
@@ -275,13 +395,13 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    StylusTextField(
                       controller: usernameController,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(labelText: 'Username'),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    StylusTextField(
                       controller: passwordController,
                       obscureText: true,
                       onSubmitted: (_) => login(),
@@ -1106,7 +1226,7 @@ class _LeadsPageState extends State<LeadsPage> {
                 ],
               ),
               const SizedBox(height: 14),
-              TextField(
+              StylusTextField(
                 controller: searchController,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
@@ -1449,7 +1569,7 @@ class _LeadFormPageState extends State<LeadFormPage> {
                     AppField(controller: town, label: 'Town / City'),
                     AppField(controller: county, label: 'County'),
                     AppField(controller: postcode, label: 'Postcode'),
-                    TextFormField(
+                    StylusTextFormField(
                       controller: followUpDate,
                       readOnly: true,
                       onTap: pickFollowUpDate,
@@ -1517,7 +1637,7 @@ class _LeadFormPageState extends State<LeadFormPage> {
               ),
               SectionCard(
                 title: 'Notes',
-                child: TextFormField(
+                child: StylusTextFormField(
                   controller: notes,
                   minLines: 5,
                   maxLines: 8,
@@ -2609,7 +2729,7 @@ class AppField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return StylusTextFormField(
       controller: controller,
       keyboardType: keyboardType,
       decoration: InputDecoration(labelText: required ? '$label *' : label),
