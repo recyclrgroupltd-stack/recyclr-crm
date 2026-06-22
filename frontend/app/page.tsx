@@ -63,14 +63,16 @@ export default function HomePage() {
               Login
             </Link>
             <span className="text-slate-300">|</span>
-            {portalLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-2 transition hover:bg-[#b9ff2f] hover:text-[#07152d]"
-              >
-                {item.label}
-              </Link>
+            {portalLinks.map((item, index) => (
+              <span key={item.href} className="flex items-center gap-2">
+                {index > 0 ? <span className="text-slate-300">|</span> : null}
+                <Link
+                  href={item.href}
+                  className="rounded-md px-3 py-2 transition hover:bg-[#b9ff2f] hover:text-[#07152d]"
+                >
+                  {item.label}
+                </Link>
+              </span>
             ))}
           </nav>
         </div>
