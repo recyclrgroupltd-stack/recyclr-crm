@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiPath } from "@/lib/apiBase";
 
 type PortalSite = {
   id: number;
@@ -225,7 +226,7 @@ export default function HaulierPortalPage() {
       setError("");
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/hauliers/portal/jobs/?email=${encodeURIComponent(email)}`
+        apiPath(`/api/hauliers/portal/jobs/?email=${encodeURIComponent(email)}`)
       );
 
       const data = await response.json();
@@ -271,7 +272,7 @@ export default function HaulierPortalPage() {
       setError("");
       setMessage("");
 
-      const response = await fetch(`http://127.0.0.1:8000/api/hauliers/portal/jobs/${jobId}/update/`, {
+      const response = await fetch(apiPath(`/api/hauliers/portal/jobs/${jobId}/update/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,7 +336,7 @@ export default function HaulierPortalPage() {
         body.append("evidence_image", evidenceFile);
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/hauliers/portal/jobs/${failJobId}/update/`, {
+      const response = await fetch(apiPath(`/api/hauliers/portal/jobs/${failJobId}/update/`), {
         method: "POST",
         body,
       });
@@ -436,8 +437,8 @@ export default function HaulierPortalPage() {
             <div className="flex items-start gap-4">
               <div className="relative mt-1 h-14 w-36 shrink-0">
                 <Image
-                  src="/recyclrcore-logo.png"
-                  alt="RecyclrCore"
+                  src="/recyclr-group-logo.png"
+                  alt="Recyclr Group Ltd"
                   fill
                   className="object-contain object-left"
                   priority
@@ -447,7 +448,7 @@ export default function HaulierPortalPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.2em] text-white/55">
-                    RecyclrCore
+                    Recyclr Group
                   </div>
                   <div className="rounded-full border border-white/15 bg-black/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
                     Hauliers

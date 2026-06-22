@@ -138,9 +138,9 @@ function documentUrl(path: string, token: string) {
 }
 
 function logoSrc(company: Company | null | undefined) {
-  if (!company) return "";
+  if (!company) return "/recyclr-group-logo.png";
   if (company.logo_url) return company.logo_url.startsWith("http") ? company.logo_url : `${BACKEND_BASE}${company.logo_url}`;
-  return company.logo_data || "";
+  return company.logo_data || "/recyclr-group-logo.png";
 }
 
 export default function CustomerPortalPage() {
@@ -277,11 +277,7 @@ export default function CustomerPortalPage() {
         <header className="rounded-lg bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-5">
-              {companyLogo ? (
-                <img src={companyLogo} alt={companyName} className="h-auto w-[165px]" />
-              ) : (
-                <div className="text-2xl font-black text-violet-800">{companyName}</div>
-              )}
+              <img src={companyLogo} alt={companyName} className="h-auto w-[190px]" />
               <div>
                 <h1 className="text-3xl font-black">{data.customer.business_name}</h1>
                 <p className="mt-1 text-sm font-bold text-slate-500">

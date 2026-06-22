@@ -17,7 +17,7 @@ const serviceCards = [
   },
   {
     title: "Container Management",
-    text: "Tracked bins, site allocation, QR labels, lifecycle status, and stock visibility through Recyclr Core.",
+    text: "Tracked bins, site allocation, QR labels, lifecycle status, and stock visibility through Recyclr systems.",
   },
   {
     title: "Customer Operations",
@@ -39,7 +39,7 @@ const portalCards = [
   {
     label: "Staff Login",
     href: "/login",
-    text: "Access Recyclr Core for sales, customers, containers, pricing, and operations.",
+    text: "Access the staff CRM for sales, customers, containers, pricing, and operations.",
   },
 ];
 
@@ -49,7 +49,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center">
-            <img src="/recyclrcore-logo.png" alt="Recyclr Group Ltd" className="h-auto w-40 sm:w-52" />
+            <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-40 sm:w-52" />
           </Link>
 
           <nav className="flex flex-wrap items-center justify-end gap-2 text-sm font-black text-[#07152d]">
@@ -103,7 +103,7 @@ export default function HomePage() {
               <div className="rounded-md bg-[#07152d] p-5 text-white">
                 <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-5">
                   <div>
-                    <p className="text-sm font-black text-[#b9ff2f]">Recyclr Core</p>
+                    <p className="text-sm font-black text-[#b9ff2f]">Recyclr Group Ltd</p>
                     <h2 className="mt-1 text-2xl font-black">Live service visibility</h2>
                   </div>
                   <div className="rounded-md bg-white px-3 py-2 text-sm font-black text-[#07152d]">24/7</div>
@@ -187,7 +187,7 @@ export default function HomePage() {
 
       <footer className="border-t border-slate-200 bg-[#07152d] px-5 py-7 text-white sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <img src="/recyclrcore-logo.png" alt="Recyclr Group Ltd" className="h-auto w-36" />
+          <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-36 rounded bg-white p-2" />
           <div className="text-sm font-semibold text-white/75">Recyclr Group Ltd</div>
         </div>
       </footer>

@@ -2,6 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apiPath } from "@/lib/apiBase";
 
 export default function HaulierSetPasswordPage() {
   const params = useParams();
@@ -24,7 +25,7 @@ export default function HaulierSetPasswordPage() {
       setError("");
       setMessage("");
 
-      const response = await fetch(`http://127.0.0.1:8000/api/hauliers/portal/set-password/${token}/`, {
+      const response = await fetch(apiPath(`/api/hauliers/portal/set-password/${token}/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,8 +58,8 @@ export default function HaulierSetPasswordPage() {
       <div className="w-full max-w-md rounded-[32px] border border-white/15 bg-white/10 p-8 backdrop-blur-lg">
         <div className="mb-8 text-center">
           <img
-            src="/recyclrcore-logo.png"
-            alt="RecyclrCore"
+            src="/recyclr-group-logo.png"
+            alt="Recyclr Group Ltd"
             className="mx-auto mb-4 h-auto w-[220px]"
           />
           <div className="mb-6 text-sm font-semibold uppercase tracking-[0.28em] text-white/80">

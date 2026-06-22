@@ -16,9 +16,9 @@ type Company = {
 };
 
 function logoSrc(company: Company | null) {
-  if (!company) return "";
+  if (!company) return "/recyclr-group-logo.png";
   if (company.logo_url) return company.logo_url.startsWith("http") ? company.logo_url : `${BACKEND_BASE}${company.logo_url}`;
-  return company.logo_data || "";
+  return company.logo_data || "/recyclr-group-logo.png";
 }
 
 export default function CustomerPortalLoginPage() {
@@ -66,11 +66,7 @@ export default function CustomerPortalLoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-[#0d0338] px-4 py-8 text-slate-950">
       <section className="w-full max-w-xl rounded-lg bg-white p-7 shadow-2xl">
         <div className="mb-7">
-          {companyLogo ? (
-            <img src={companyLogo} alt={companyName} className="mb-6 h-auto w-[180px]" />
-          ) : (
-            <div className="mb-6 text-2xl font-black text-violet-800">{companyName}</div>
-          )}
+          <img src={companyLogo} alt={companyName} className="mb-6 h-auto w-[210px]" />
           <h1 className="text-3xl font-black">Customer portal</h1>
           <p className="mt-2 text-sm font-medium text-slate-600">
             Sign in with your email address and portal password.
