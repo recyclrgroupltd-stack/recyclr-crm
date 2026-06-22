@@ -6,22 +6,28 @@ const portalLinks = [
   { label: "Staff", href: "/login" },
 ];
 
+const signalCards = [
+  { label: "Collections", value: "Tracked", tone: "blue" },
+  { label: "Containers", value: "QR Ready", tone: "lime" },
+  { label: "Requests", value: "Connected", tone: "navy" },
+];
+
 const serviceCards = [
   {
     title: "Commercial Waste",
-    text: "Reliable collections for offices, retail, hospitality, industrial sites, and multi-site businesses.",
+    text: "Reliable waste collections for offices, retail, hospitality, industrial sites, and growing multi-site businesses.",
   },
   {
     title: "Recycling Support",
-    text: "Clear recycling streams, better segregation, and practical help to reduce waste going to landfill.",
+    text: "Practical recycling streams, cleaner segregation, and better visibility over what happens at each site.",
   },
   {
-    title: "Container Management",
-    text: "Tracked bins, site allocation, QR labels, lifecycle status, and stock visibility through Recyclr systems.",
+    title: "Smart Containers",
+    text: "QR-labelled containers, lifecycle status, site allocation, stock control, and maintenance records.",
   },
   {
-    title: "Customer Operations",
-    text: "Requests, service changes, documents, collections, and account support managed in one place.",
+    title: "Live Portals",
+    text: "Customers, hauliers, and staff use the right portal to keep requests, jobs, documents, and updates moving.",
   },
 ];
 
@@ -29,31 +35,31 @@ const portalCards = [
   {
     label: "Customer Portal",
     href: "/customer-portal/login",
-    text: "View services, requests, collections, documents, and account updates.",
+    text: "View services, collections, documents, and send account requests.",
   },
   {
     label: "Haulier Portal",
     href: "/haulier-portal/login",
-    text: "Manage assigned jobs, updates, and operational work with Recyclr.",
+    text: "See assigned work, update collection status, and submit evidence.",
   },
   {
     label: "Staff Login",
     href: "/login",
-    text: "Access the staff CRM for sales, customers, containers, pricing, and operations.",
+    text: "Open the staff CRM for sales, customers, pricing, containers, and operations.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-white text-[#07152d]">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+    <main className="min-h-screen overflow-hidden bg-white text-[#07152d]">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" className="flex items-center">
-            <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-40 sm:w-52" />
+            <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-32 rounded-md bg-[#1f1b60] sm:w-44" />
           </Link>
 
           <nav className="flex flex-wrap items-center justify-end gap-2 text-sm font-black text-[#07152d]">
-            <Link href="/login" className="rounded-md border border-slate-200 px-3 py-2 transition hover:border-[#0a9ee8] hover:text-[#0a78b8]">
+            <Link href="/login" className="rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm transition hover:border-[#0a9ee8] hover:text-[#0a78b8]">
               Login
             </Link>
             <span className="text-slate-300">|</span>
@@ -70,67 +76,81 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden bg-white">
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#08a8f0] via-[#b9ff2f] to-[#44c821]" />
+      <section className="relative bg-white">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,168,240,0.08)_1px,transparent_1px),linear-gradient(180deg,rgba(8,168,240,0.08)_1px,transparent_1px)] bg-[size:56px_56px]" />
+        <div className="absolute left-0 top-0 h-1.5 w-full bg-gradient-to-r from-[#08a8f0] via-[#b9ff2f] to-[#44c821]" />
+        <div className="absolute -right-24 top-24 h-72 w-72 rounded-full border border-[#08a8f0]/25" />
+        <div className="absolute -right-10 top-44 h-40 w-40 rounded-full border border-[#b9ff2f]/60" />
 
-        <div className="mx-auto grid min-h-[72vh] max-w-7xl gap-10 px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="relative mx-auto grid min-h-[76vh] max-w-7xl gap-12 px-5 py-12 sm:px-8 sm:py-16 lg:grid-cols-[1fr_0.92fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-md border border-[#b9ff2f] bg-[#f5ffe7] px-3 py-2 text-sm font-black text-[#246500]">
-              Waste, recycling and container services
+            <div className="inline-flex items-center gap-3 rounded-full border border-[#b9ff2f] bg-white px-4 py-2 text-sm font-black text-[#246500] shadow-lg shadow-lime-100">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#b9ff2f] shadow-[0_0_18px_#b9ff2f]" />
+              Waste, recycling and connected service management
             </div>
 
-            <h1 className="mt-6 max-w-4xl text-5xl font-black leading-tight text-[#07152d] sm:text-6xl lg:text-7xl">
-              Cleaner commercial waste support, built around your business.
+            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-tight text-[#07152d] sm:text-6xl lg:text-7xl">
+              Recycling services with a smarter digital edge.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg font-semibold leading-8 text-slate-650 sm:text-xl">
-              Recyclr Group Ltd helps businesses manage collections, recycling, containers, documents, and service requests with a simple connected portal for customers, hauliers, and staff.
+            <p className="mt-6 max-w-2xl text-lg font-semibold leading-8 text-slate-600 sm:text-xl">
+              Recyclr Group Ltd helps businesses manage collections, recycling, containers, service requests, and documents through a cleaner, connected way of working.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/customer-portal/login" className="rounded-md bg-[#b9ff2f] px-5 py-3 text-sm font-black text-[#07152d] shadow-sm transition hover:bg-[#a6f018]">
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Link href="/customer-portal/login" className="rounded-md bg-[#b9ff2f] px-5 py-3 text-sm font-black text-[#07152d] shadow-lg shadow-lime-200 transition hover:-translate-y-0.5 hover:bg-[#a6f018]">
                 Customer Portal
               </Link>
-              <Link href="/haulier-portal/login" className="rounded-md border border-[#0a9ee8] px-5 py-3 text-sm font-black text-[#075985] transition hover:bg-[#e8f8ff]">
+              <Link href="/haulier-portal/login" className="rounded-md border border-[#0a9ee8] bg-white px-5 py-3 text-sm font-black text-[#075985] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eff9ff]">
                 Haulier Portal
               </Link>
             </div>
           </div>
 
           <div className="relative">
-            <div className="absolute -left-4 top-8 hidden h-[82%] w-2 rounded-md bg-[#b9ff2f] sm:block" />
-            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/80">
-              <div className="rounded-md bg-[#07152d] p-5 text-white">
-                <div className="flex items-center justify-between gap-4 border-b border-white/15 pb-5">
+            <div className="absolute -inset-4 rounded-[28px] bg-gradient-to-br from-[#08a8f0]/18 via-white to-[#b9ff2f]/24 blur-2xl" />
+            <div className="relative rounded-[28px] border border-slate-200 bg-white/85 p-4 shadow-2xl shadow-slate-200/80 backdrop-blur-xl">
+              <div className="rounded-[22px] bg-[#07152d] p-5 text-white">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-black text-[#b9ff2f]">Recyclr Group Ltd</p>
-                    <h2 className="mt-1 text-2xl font-black">Live service visibility</h2>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#b9ff2f]">Recyclr Network</p>
+                    <h2 className="mt-2 text-2xl font-black">Live operations layer</h2>
                   </div>
-                  <div className="rounded-md bg-white px-3 py-2 text-sm font-black text-[#07152d]">24/7</div>
+                  <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black">ONLINE</div>
                 </div>
 
-                <div className="mt-5 grid gap-3">
-                  {["Collections tracked", "Customer requests logged", "Containers QR managed", "Documents kept together"].map((item) => (
-                    <div key={item} className="flex items-center justify-between rounded-md border border-white/10 bg-white/8 px-4 py-3">
-                      <span className="font-bold">{item}</span>
-                      <span className="h-3 w-3 rounded-sm bg-[#b9ff2f]" />
+                <div className="mt-6 grid gap-3">
+                  {signalCards.map((card, index) => (
+                    <div key={card.label} className="rounded-xl border border-white/10 bg-white/8 p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white/70">{card.label}</span>
+                        <span className="text-sm font-black text-white">{card.value}</span>
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-white/10">
+                        <div
+                          className={`h-2 rounded-full ${
+                            card.tone === "lime" ? "bg-[#b9ff2f]" : card.tone === "blue" ? "bg-[#08a8f0]" : "bg-white"
+                          }`}
+                          style={{ width: `${72 + index * 10}%` }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-                <div className="rounded-md bg-[#eff9ff] p-4">
-                  <div className="text-2xl font-black text-[#0a78b8]">CRM</div>
-                  <div className="mt-1 text-xs font-bold text-slate-600">Connected</div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-[#eff9ff] p-4">
+                  <p className="text-xs font-black uppercase text-[#0a78b8]">Sites</p>
+                  <p className="mt-2 text-2xl font-black">Mapped</p>
                 </div>
-                <div className="rounded-md bg-[#f5ffe7] p-4">
-                  <div className="text-2xl font-black text-[#246500]">QR</div>
-                  <div className="mt-1 text-xs font-bold text-slate-600">Tracked</div>
+                <div className="rounded-2xl border border-slate-200 bg-[#f5ffe7] p-4">
+                  <p className="text-xs font-black uppercase text-[#246500]">Bins</p>
+                  <p className="mt-2 text-2xl font-black">Scanned</p>
                 </div>
-                <div className="rounded-md bg-slate-50 p-4">
-                  <div className="text-2xl font-black text-[#07152d]">UK</div>
-                  <div className="mt-1 text-xs font-bold text-slate-600">Support</div>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase text-slate-500">Docs</p>
+                  <p className="mt-2 text-2xl font-black">Signed</p>
                 </div>
               </div>
             </div>
@@ -138,22 +158,26 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-slate-200 bg-slate-50 px-5 py-12 sm:px-8">
+      <section className="relative border-y border-slate-200 bg-[#f8fbff] px-5 py-14 sm:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
             <div>
               <p className="text-sm font-black text-[#0a78b8]">What we do</p>
-              <h2 className="mt-2 text-3xl font-black text-[#07152d] sm:text-4xl">Practical waste services with proper account control.</h2>
+              <h2 className="mt-2 max-w-3xl text-3xl font-black text-[#07152d] sm:text-4xl">
+                Practical waste services, powered by better information.
+              </h2>
             </div>
-            <p className="max-w-lg font-semibold leading-7 text-slate-600">
-              Clear service management for businesses that need collections handled properly and information easy to find.
+            <p className="max-w-xl font-semibold leading-7 text-slate-600">
+              We keep the day-to-day simple: clear collections, cleaner recycling, visible containers, and portals that make requests easier to manage.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {serviceCards.map((service) => (
-              <article key={service.title} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="h-1.5 w-16 rounded-sm bg-[#b9ff2f]" />
+              <article key={service.title} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#08a8f0] hover:shadow-xl hover:shadow-sky-100">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#07152d] text-lg font-black text-[#b9ff2f]">
+                  {service.title.slice(0, 1)}
+                </div>
                 <h3 className="mt-5 text-xl font-black text-[#07152d]">{service.title}</h3>
                 <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{service.text}</p>
               </article>
@@ -162,11 +186,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-white px-5 py-12 sm:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+      <section className="bg-white px-5 py-14 sm:px-8">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
           <div>
             <p className="text-sm font-black text-[#246500]">Portal access</p>
-            <h2 className="mt-2 text-3xl font-black text-[#07152d] sm:text-4xl">The right portal for the right job.</h2>
+            <h2 className="mt-2 text-3xl font-black text-[#07152d] sm:text-4xl">Three doors. One connected service.</h2>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -174,11 +198,13 @@ export default function HomePage() {
               <Link
                 key={portal.href}
                 href={portal.href}
-                className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0a9ee8] hover:shadow-lg"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#b9ff2f] hover:shadow-xl hover:shadow-lime-100"
               >
                 <h3 className="text-lg font-black text-[#07152d]">{portal.label}</h3>
                 <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">{portal.text}</p>
-                <div className="mt-5 text-sm font-black text-[#0a78b8]">Open portal</div>
+                <div className="mt-5 inline-flex rounded-full bg-[#eff9ff] px-3 py-2 text-sm font-black text-[#0a78b8]">
+                  Open portal
+                </div>
               </Link>
             ))}
           </div>
@@ -187,7 +213,7 @@ export default function HomePage() {
 
       <footer className="border-t border-slate-200 bg-[#07152d] px-5 py-7 text-white sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-36 rounded bg-white p-2" />
+          <img src="/recyclr-group-logo.png" alt="Recyclr Group Ltd" className="h-auto w-40 rounded-md bg-[#1f1b60]" />
           <div className="text-sm font-semibold text-white/75">Recyclr Group Ltd</div>
         </div>
       </footer>
