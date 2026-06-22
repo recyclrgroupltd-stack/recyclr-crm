@@ -39,6 +39,8 @@ class Customer(models.Model):
     auto_invoice_enabled = models.BooleanField(default=True)
     next_invoice_date = models.DateField(null=True, blank=True)
     last_invoiced_at = models.DateTimeField(null=True, blank=True)
+    portal_enabled = models.BooleanField(default=False)
+    portal_password_hash = models.CharField(max_length=255, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

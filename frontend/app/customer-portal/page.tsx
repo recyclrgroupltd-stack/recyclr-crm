@@ -232,6 +232,14 @@ export default function CustomerPortalPage() {
     }
   }
 
+  function startRequest(type: string) {
+    setRequestType(type);
+    setNotice("");
+    window.setTimeout(() => {
+      document.getElementById("customer-request-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
   const companyName = data?.company?.name || "Recyclr Group Ltd";
   const companyLogo = logoSrc(data?.company);
   const accountManager = data?.customer.account_manager;
@@ -318,8 +326,57 @@ export default function CustomerPortalPage() {
           </div>
         </section>
 
+        <section className="grid gap-3 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => startRequest("missed_collection")}
+            className="rounded-lg border border-white/10 bg-white p-5 text-left text-slate-950 shadow-sm transition hover:border-red-200 hover:bg-red-50"
+          >
+            <div className="text-xs font-black uppercase tracking-wide text-red-600">Report</div>
+            <div className="mt-1 text-lg font-black">Missed Collection</div>
+            <p className="mt-2 text-sm font-semibold text-slate-500">Tell us if a scheduled collection was missed.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => startRequest("extra_lift")}
+            className="rounded-lg border border-white/10 bg-white p-5 text-left text-slate-950 shadow-sm transition hover:border-violet-200 hover:bg-violet-50"
+          >
+            <div className="text-xs font-black uppercase tracking-wide text-violet-700">Request</div>
+            <div className="mt-1 text-lg font-black">Additional Lift</div>
+            <p className="mt-2 text-sm font-semibold text-slate-500">Ask for an extra collection outside the normal schedule.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => startRequest("preferred_day")}
+            className="rounded-lg border border-white/10 bg-white p-5 text-left text-slate-950 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50"
+          >
+            <div className="text-xs font-black uppercase tracking-wide text-emerald-700">Change</div>
+            <div className="mt-1 text-lg font-black">Preferred Day</div>
+            <p className="mt-2 text-sm font-semibold text-slate-500">Request a preferred day for regular collections.</p>
+          </button>
+        </section>
+
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
           <div className="space-y-5">
+            <section className="rounded-lg bg-white p-5">
+              <h2 className="text-xl font-black">Your Sites</h2>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {data.sites.length ? (
+                  data.sites.map((site) => (
+                    <article key={site.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <div className="font-black">{site.site_name}</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-500">{site.address || "Address not set"}</div>
+                      {site.postcode ? <div className="mt-2 text-xs font-black uppercase text-slate-400">{site.postcode}</div> : null}
+                    </article>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-slate-300 p-6 font-bold text-slate-500">
+                    No sites are visible yet.
+                  </div>
+                )}
+              </div>
+            </section>
+
             <section className="rounded-lg bg-white p-5">
               <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                 <div>
@@ -369,6 +426,46 @@ export default function CustomerPortalPage() {
             </section>
 
             <section className="rounded-lg bg-white p-5">
+              <h2 className="text-xl font-black">Recent Collections</h2>
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="bg-slate-100 text-xs font-black uppercase text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Site</th>
+                      <th className="px-4 py-3">Waste Stream</th>
+                      <th className="px-4 py-3">Bins</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recent_jobs.length ? (
+                      data.recent_jobs.slice(0, 8).map((job) => (
+                        <tr key={job.id} className="border-b border-slate-100">
+                          <td className="px-4 py-3 font-bold">{formatDate(job.collection_date)}</td>
+                          <td className="px-4 py-3 font-bold">{job.site_name}</td>
+                          <td className="px-4 py-3">{job.waste_type}</td>
+                          <td className="px-4 py-3">{job.bin_quantity} x {job.bin_size}</td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black capitalize text-slate-700">
+                              {statusLabel(job.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center font-bold text-slate-500">
+                          No completed collections are visible yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="customer-request-form" className="scroll-mt-5 rounded-lg bg-white p-5">
               <h2 className="text-xl font-black">Services</h2>
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 {data.services.length ? (

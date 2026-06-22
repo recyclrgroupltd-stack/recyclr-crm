@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.core import signing
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -610,6 +611,10 @@ def customer_detail(request, customer_id):
                 "county": customer.county or "",
                 "postcode": customer.postcode or "",
                 "billing": _billing_payload(customer),
+                "portal": {
+                    "enabled": customer.portal_enabled,
+                    "has_password": bool(customer.portal_password_hash),
+                },
                 "created_at": customer.created_at.isoformat() if customer.created_at else "",
                 "updated_at": customer.updated_at.isoformat() if customer.updated_at else "",
             }
@@ -642,6 +647,16 @@ def customer_detail(request, customer_id):
         customer.invoice_email = billing.get("invoice_email", payload.get("invoice_email", "")) or ""
         customer.invoice_po_number = billing.get("invoice_po_number", payload.get("invoice_po_number", "")) or ""
         customer.auto_invoice_enabled = bool(billing.get("auto_invoice_enabled", payload.get("auto_invoice_enabled", True)))
+        portal = payload.get("portal") or {}
+        customer.portal_enabled = bool(portal.get("enabled", payload.get("portal_enabled", customer.portal_enabled)))
+        portal_password = str(portal.get("password") or "").strip()
+        if portal_password:
+            if len(portal_password) < 8:
+                return JsonResponse(
+                    {"success": False, "message": "Customer portal password must be at least 8 characters."},
+                    status=400,
+                )
+            customer.portal_password_hash = make_password(portal_password)
         customer.save()
 
         return JsonResponse(
@@ -1022,22 +1037,22 @@ def customer_portal_login(request):
     except json.JSONDecodeError:
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
-    customer_ref = (payload.get("customer_uid") or payload.get("customer_id") or "").strip()
     email = (payload.get("email") or "").strip()
-    if not customer_ref or not email:
+    password = payload.get("password") or ""
+    if not email or not password:
         return JsonResponse(
-            {"success": False, "message": "Please enter your customer ID and email address."},
+            {"success": False, "message": "Please enter your email address and password."},
             status=400,
         )
 
     customer = (
         Customer.objects.select_related("account_manager", "account_manager__staff_profile")
-        .filter(customer_uid__iexact=customer_ref, email__iexact=email)
+        .filter(email__iexact=email, portal_enabled=True)
         .first()
     )
-    if not customer:
+    if not customer or not customer.portal_password_hash or not check_password(password, customer.portal_password_hash):
         return JsonResponse(
-            {"success": False, "message": "We could not match those customer portal details."},
+            {"success": False, "message": "Invalid email or password."},
             status=400,
         )
 

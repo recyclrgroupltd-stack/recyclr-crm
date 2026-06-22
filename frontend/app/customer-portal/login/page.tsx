@@ -24,8 +24,8 @@ function logoSrc(company: Company | null) {
 export default function CustomerPortalLoginPage() {
   const router = useRouter();
   const [company, setCompany] = useState<Company | null>(null);
-  const [customerUid, setCustomerUid] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -46,7 +46,7 @@ export default function CustomerPortalLoginPage() {
       const response = await fetch(`${API_BASE}/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_uid: customerUid.trim(), email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       const data = await readApiPayload(response, "Could not sign in.");
       if (!response.ok || !data.success) throw new Error(data.message || "Could not sign in.");
@@ -73,7 +73,7 @@ export default function CustomerPortalLoginPage() {
           )}
           <h1 className="text-3xl font-black">Customer portal</h1>
           <p className="mt-2 text-sm font-medium text-slate-600">
-            Sign in with your customer ID and the email address on your account.
+            Sign in with your email address and portal password.
           </p>
         </div>
 
@@ -83,22 +83,23 @@ export default function CustomerPortalLoginPage() {
 
         <form onSubmit={login} className="space-y-4">
           <label className="block">
-            <span className="text-xs font-black uppercase tracking-wide text-slate-500">Customer ID</span>
-            <input
-              value={customerUid}
-              onChange={(event) => setCustomerUid(event.target.value)}
-              placeholder="CUST-000001"
-              className="mt-2 w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 font-bold outline-none focus:border-violet-500"
-              required
-            />
-          </label>
-          <label className="block">
             <span className="text-xs font-black uppercase tracking-wide text-slate-500">Email address</span>
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
+              className="mt-2 w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 font-bold outline-none focus:border-violet-500"
+              required
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-black uppercase tracking-wide text-slate-500">Password</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Your portal password"
               className="mt-2 w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 font-bold outline-none focus:border-violet-500"
               required
             />

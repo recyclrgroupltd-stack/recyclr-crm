@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import StaffShell from "@/components/StaffShell";
+import { apiPath, readApiPayload } from "@/lib/apiBase";
+import { getAuthHeaders } from "@/lib/auth";
 
 type CustomerForm = {
   business_name: string;
@@ -24,6 +26,11 @@ type CustomerForm = {
     auto_invoice_enabled: boolean;
     next_invoice_date: string;
     last_invoiced_at: string;
+  };
+  portal: {
+    enabled: boolean;
+    has_password: boolean;
+    password: string;
   };
 };
 
@@ -58,6 +65,11 @@ export default function EditCustomerPage() {
       next_invoice_date: "",
       last_invoiced_at: "",
     },
+    portal: {
+      enabled: false,
+      has_password: false,
+      password: "",
+    },
   });
 
   useEffect(() => {
@@ -68,8 +80,10 @@ export default function EditCustomerPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/`);
-        const result = await response.json();
+        const response = await fetch(apiPath(`/api/customers/${customerId}/`), {
+          headers: getAuthHeaders(),
+        });
+        const result = await readApiPayload(response, "Failed to load customer.");
 
         if (!response.ok) {
           throw new Error("Failed to load customer.");
@@ -95,6 +109,11 @@ export default function EditCustomerPage() {
             auto_invoice_enabled: result.billing?.auto_invoice_enabled !== false,
             next_invoice_date: result.billing?.next_invoice_date || "",
             last_invoiced_at: result.billing?.last_invoiced_at || "",
+          },
+          portal: {
+            enabled: Boolean(result.portal?.enabled),
+            has_password: Boolean(result.portal?.has_password),
+            password: "",
           },
         });
       } catch (err) {
@@ -128,27 +147,51 @@ export default function EditCustomerPage() {
     }));
   }
 
+  function updatePortalField<K extends keyof CustomerForm["portal"]>(
+    field: K,
+    value: CustomerForm["portal"][K]
+  ) {
+    setForm((current) => ({
+      ...current,
+      portal: {
+        ...current.portal,
+        [field]: value,
+      },
+    }));
+  }
+
   async function saveCustomer() {
     try {
       setSaving(true);
       setError("");
       setSuccess("");
 
-      const response = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/`, {
+      const response = await fetch(apiPath(`/api/customers/${customerId}/`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(),
         },
         body: JSON.stringify(form),
       });
 
-      const result = await response.json();
+      const result = await readApiPayload(response, "Failed to save customer.");
 
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to save customer.");
       }
 
       setSuccess("Customer updated successfully.");
+      if (form.portal.password) {
+        setForm((current) => ({
+          ...current,
+          portal: {
+            ...current.portal,
+            has_password: true,
+            password: "",
+          },
+        }));
+      }
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -374,6 +417,53 @@ export default function EditCustomerPage() {
                         : "Never"}
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-lg border border-violet-100 bg-slate-50 p-4">
+              <h3 className="text-lg font-semibold">Customer Portal Access</h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Customers sign in with their email address and this portal password.
+              </p>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-lg border border-violet-100 bg-white p-4 text-sm font-bold text-slate-950">
+                  <input
+                    type="checkbox"
+                    checked={form.portal.enabled}
+                    onChange={(e) => updatePortalField("enabled", e.target.checked)}
+                    className="mt-1"
+                  />
+                  <span>
+                    Enable customer portal login
+                    <span className="mt-1 block text-xs font-medium text-slate-500">
+                      Turn this off to block the customer from signing into the portal.
+                    </span>
+                  </span>
+                </label>
+
+                <div className="rounded-lg border border-violet-100 bg-white p-4">
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-400">Password Status</div>
+                  <div className="mt-1 text-sm font-bold text-slate-950">
+                    {form.portal.has_password ? "Saved password exists" : "No password set yet"}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-500">
+                    Set / Reset Portal Password
+                  </label>
+                  <input
+                    type="password"
+                    value={form.portal.password}
+                    onChange={(e) => updatePortalField("password", e.target.value)}
+                    placeholder={form.portal.has_password ? "Leave blank to keep current password" : "Minimum 8 characters"}
+                    className="w-full rounded-lg border border-violet-100 bg-white px-4 py-3 text-sm font-semibold text-slate-950 outline-none"
+                  />
+                  <p className="mt-2 text-xs font-medium text-slate-500">
+                    Give this password to the customer. We store it hashed, so it cannot be viewed again later.
+                  </p>
                 </div>
               </div>
             </div>
