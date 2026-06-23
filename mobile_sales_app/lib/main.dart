@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -173,23 +174,35 @@ class _StylusTextFieldState extends State<StylusTextField> {
   void focusForStylus(PointerDeviceKind kind) {
     if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
       focusNode.requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !focusNode.hasFocus) return;
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerHover: (event) => focusForStylus(event.kind),
-      onPointerDown: (event) => focusForStylus(event.kind),
-      child: TextField(
-        controller: widget.controller,
-        focusNode: focusNode,
-        keyboardType: widget.keyboardType,
-        decoration: widget.decoration,
-        obscureText: widget.obscureText,
-        textInputAction: widget.textInputAction,
-        onChanged: widget.onChanged,
-        onSubmitted: widget.onSubmitted,
+    return MouseRegion(
+      opaque: true,
+      cursor: SystemMouseCursors.text,
+      onHover: (event) => focusForStylus(event.kind),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerHover: (event) => focusForStylus(event.kind),
+        onPointerMove: (event) => focusForStylus(event.kind),
+        onPointerDown: (event) => focusForStylus(event.kind),
+        child: TextField(
+          controller: widget.controller,
+          focusNode: focusNode,
+          keyboardType: widget.keyboardType,
+          decoration: widget.decoration,
+          obscureText: widget.obscureText,
+          textInputAction: widget.textInputAction,
+          stylusHandwritingEnabled: true,
+          onChanged: widget.onChanged,
+          onSubmitted: widget.onSubmitted,
+        ),
       ),
     );
   }
@@ -233,24 +246,36 @@ class _StylusTextFormFieldState extends State<StylusTextFormField> {
   void focusForStylus(PointerDeviceKind kind) {
     if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
       focusNode.requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !focusNode.hasFocus) return;
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      onPointerHover: (event) => focusForStylus(event.kind),
-      onPointerDown: (event) => focusForStylus(event.kind),
-      child: TextFormField(
-        controller: widget.controller,
-        focusNode: focusNode,
-        keyboardType: widget.keyboardType,
-        decoration: widget.decoration,
-        validator: widget.validator,
-        minLines: widget.minLines,
-        maxLines: widget.maxLines,
-        readOnly: widget.readOnly,
-        onTap: widget.onTap,
+    return MouseRegion(
+      opaque: true,
+      cursor: SystemMouseCursors.text,
+      onHover: (event) => focusForStylus(event.kind),
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerHover: (event) => focusForStylus(event.kind),
+        onPointerMove: (event) => focusForStylus(event.kind),
+        onPointerDown: (event) => focusForStylus(event.kind),
+        child: TextFormField(
+          controller: widget.controller,
+          focusNode: focusNode,
+          keyboardType: widget.keyboardType,
+          decoration: widget.decoration,
+          validator: widget.validator,
+          minLines: widget.minLines,
+          maxLines: widget.maxLines,
+          readOnly: widget.readOnly,
+          onTap: widget.onTap,
+          stylusHandwritingEnabled: true,
+        ),
       ),
     );
   }
