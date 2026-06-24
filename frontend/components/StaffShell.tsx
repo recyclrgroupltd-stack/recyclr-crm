@@ -124,6 +124,7 @@ type ChatConversation = {
 const coreItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "D" },
   { label: "CRM Map", href: "/core-map", icon: "M" },
+  { label: "Service Map", href: "/service-map", icon: "S" },
   { label: "Change Log", href: "/change-log", icon: "A" },
 ];
 
@@ -385,6 +386,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
     function canViewItem(item: NavItem) {
         if (item.href === "/dashboard") return canViewDashboard(currentUser);
         if (item.href === "/core-map") return canViewDashboard(currentUser);
+        if (item.href === "/service-map") return canViewServices(currentUser) || canViewSites(currentUser) || canViewCustomers(currentUser);
         if (item.href === "/change-log") return canViewReporting(currentUser);
         if (item.href === "/leads") return canViewLeads(currentUser);
         if (item.href === "/quotes") return canViewQuotes(currentUser);
