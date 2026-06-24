@@ -75,13 +75,15 @@ class _SessionGateState extends State<SessionGate> {
     final username = prefs.getString('staff_username') ?? '';
     final backendUrl = prefs.getString('backend_url') ?? defaultBackendUrl();
     final role = prefs.getString('staff_role') ?? '';
+    final token = prefs.getString('staff_token') ?? '';
     setState(() {
-      session = username.isEmpty
+      session = username.isEmpty || token.isEmpty
           ? null
           : StaffSession(
               username: username,
               role: role,
               backendUrl: backendUrl,
+              token: token,
             );
       loading = false;
     });
@@ -101,6 +103,7 @@ class _SessionGateState extends State<SessionGate> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('staff_username');
         await prefs.remove('staff_role');
+        await prefs.remove('staff_token');
         setState(() => session = null);
       },
     );
@@ -120,15 +123,18 @@ class StaffSession {
     required this.username,
     required this.role,
     required this.backendUrl,
+    required this.token,
   });
 
   final String username;
   final String role;
   final String backendUrl;
+  final String token;
 
   Map<String, String> get jsonHeaders => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'Authorization': 'Bearer $token',
     'X-Staff-Username': username,
   };
 
@@ -358,12 +364,22 @@ class _LoginPageState extends State<LoginPage> {
       final username = (data['username'] ?? usernameController.text.trim())
           .toString();
       final role = (data['role'] ?? '').toString();
+      final token = (data['token'] ?? '').toString();
+      if (token.isEmpty) {
+        throw Exception('Login worked but the CRM did not return a session token.');
+      }
       await prefs.setString('backend_url', backendUrl);
       await prefs.setString('staff_username', username);
       await prefs.setString('staff_role', role);
+      await prefs.setString('staff_token', token);
 
       widget.onLoggedIn(
-        StaffSession(username: username, role: role, backendUrl: backendUrl),
+        StaffSession(
+          username: username,
+          role: role,
+          backendUrl: backendUrl,
+          token: token,
+        ),
       );
     } catch (err) {
       var message = err.toString().replaceFirst('Exception: ', '');
