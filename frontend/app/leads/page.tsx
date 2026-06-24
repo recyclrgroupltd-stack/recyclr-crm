@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "../../components/StaffShell";
 import { canEditLeads, getAuthHeaders, getStoredUser } from "../../lib/auth";
+import { apiPath } from "../../lib/apiBase";
 
 type Lead = {
   id: number;
@@ -129,7 +130,7 @@ export default function LeadsPage() {
     async function loadLeads() {
       try {
         setError("");
-        const response = await fetch("http://127.0.0.1:8000/api/leads/", {
+        const response = await fetch(apiPath("/api/leads/"), {
           headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -227,7 +228,7 @@ export default function LeadsPage() {
       setCreateSaving(true);
       setCreateError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/leads/", {
+      const response = await fetch(apiPath("/api/leads/"), {
         method: "POST",
         headers: getAuthHeaders({
           "Content-Type": "application/json",
