@@ -7,6 +7,8 @@ ALLOWED_HOSTED_ORIGINS = {
     "http://127.0.0.1:3000",
     "http://localhost:3000",
     "https://recyclr-crm.vercel.app",
+    "https://recyclrgroup.co.uk",
+    "https://www.recyclrgroup.co.uk",
 }
 
 
@@ -17,7 +19,11 @@ def _is_allowed_origin(origin):
         return True
 
     host = urlparse(origin).hostname or ""
-    return host.endswith(".vercel.app") or host.endswith(".onrender.com")
+    return (
+        host.endswith(".vercel.app")
+        or host.endswith(".onrender.com")
+        or host in {"recyclrgroup.co.uk", "www.recyclrgroup.co.uk"}
+    )
 
 
 class HostedCorsMiddleware:

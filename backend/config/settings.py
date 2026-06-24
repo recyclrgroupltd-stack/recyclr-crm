@@ -157,6 +157,8 @@ for origin in [
     "http://127.0.0.1:3000",
     "http://localhost:3000",
     "https://recyclr-crm.vercel.app",
+    "https://recyclrgroup.co.uk",
+    "https://www.recyclrgroup.co.uk",
 ]:
     if origin not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(origin)
@@ -177,6 +179,8 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://recyclr-crm.vercel.app",
     "https://*.vercel.app",
+    "https://recyclrgroup.co.uk",
+    "https://www.recyclrgroup.co.uk",
 ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
