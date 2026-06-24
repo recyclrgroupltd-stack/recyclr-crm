@@ -477,20 +477,20 @@ export default function LeadsPage() {
           description="Create the lead here, then you can open the full lead page to finish the waste details."
           maxWidthClassName="max-w-5xl"
           zIndexClassName="z-[300]"
-          topPaddingClassName="pt-28"
+          topPaddingClassName="pt-4 sm:pt-6 md:pt-28"
           panelClassName="bg-[#4a3099]"
           bodyClassName="px-6 py-5"
           contentClassName="min-h-0 flex-1 overflow-y-auto overscroll-contain"
           footer={
             <>
-              <div className="mr-auto text-sm text-white/60">
+              <div className="text-sm text-white/60 sm:mr-auto">
                 After saving, you will be taken straight into the full lead page.
               </div>
               <button
                 type="button"
                 onClick={closeCreateModal}
                 disabled={createSaving}
-                className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20 disabled:opacity-60"
+                className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20 disabled:opacity-60 sm:w-auto"
               >
                 Cancel
               </button>
@@ -498,7 +498,7 @@ export default function LeadsPage() {
                 type="button"
                 onClick={handleCreateLead}
                 disabled={createSaving}
-                className="rounded-xl bg-white px-5 py-3 font-semibold text-[#412a8a] transition hover:bg-gray-200 disabled:opacity-60"
+                className="rounded-xl bg-white px-5 py-3 font-semibold text-[#412a8a] transition hover:bg-gray-200 disabled:opacity-60 sm:w-auto"
               >
                 {createSaving ? "Creating..." : "Create Lead"}
               </button>

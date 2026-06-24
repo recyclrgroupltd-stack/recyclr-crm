@@ -45,20 +45,20 @@ export default function AppModal({
 
   const alignmentClassName =
     align === "center"
-      ? "items-center justify-center px-4 py-6"
-      : `items-start justify-center px-4 pb-6 ${topPaddingClassName}`;
+      ? "items-center justify-center px-3 py-4 sm:px-4 sm:py-6"
+      : `items-start justify-center px-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:px-4 sm:pb-6 ${topPaddingClassName}`;
 
   return (
     <div
       className={`fixed inset-0 ${zIndexClassName} overflow-y-auto overscroll-contain bg-[#120a2e]/92 backdrop-blur-[2px]`}
       onClick={onBackdropClose ? onClose : undefined}
     >
-      <div className={`flex min-h-full ${alignmentClassName}`}>
+      <div className={`flex min-h-[100dvh] ${alignmentClassName}`}>
         <div
-          className={`flex max-h-[calc(100vh-8rem)] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-[28px] border border-white/15 ${panelClassName} text-white shadow-2xl`}
+          className={`flex max-h-[calc(100dvh-1.5rem-env(safe-area-inset-bottom))] w-full ${maxWidthClassName} flex-col overflow-hidden rounded-[24px] border border-white/15 ${panelClassName} text-white shadow-2xl md:max-h-[calc(100dvh-8rem)] md:rounded-[28px]`}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-4 py-4 sm:gap-4 sm:px-6 sm:py-5">
             <div>
               <h2 className="text-2xl font-semibold text-white">{title}</h2>
               {description ? (
@@ -83,7 +83,7 @@ export default function AppModal({
           </div>
 
           {footer ? (
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
+            <div className="flex shrink-0 flex-col items-stretch gap-3 border-t border-white/10 px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end sm:px-6">
               {footer}
             </div>
           ) : null}
