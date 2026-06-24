@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const BACKEND_BASE =
   process.env.NEXT_PUBLIC_BACKEND_BASE || "https://recyclr-crm-backend.onrender.com";
 
@@ -70,6 +73,7 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     headers: buildForwardHeaders(request),
     body: method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer(),
     cache: "no-store",
+    redirect: "manual",
   });
 
   const responseHeaders = new Headers();
@@ -78,6 +82,8 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
       responseHeaders.set(key, value);
     }
   });
+  responseHeaders.set("cache-control", "no-store");
+  responseHeaders.set("x-recyclr-proxy-method", method);
 
   return new NextResponse(response.body, {
     status: response.status,
