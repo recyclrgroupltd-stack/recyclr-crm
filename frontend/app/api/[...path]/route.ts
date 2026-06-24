@@ -16,6 +16,25 @@ const HOP_BY_HOP_HEADERS = new Set([
   "upgrade",
 ]);
 
+const PROXY_HEADERS = new Set([
+  "forwarded",
+  "x-forwarded-for",
+  "x-forwarded-host",
+  "x-forwarded-port",
+  "x-forwarded-proto",
+  "x-real-ip",
+  "x-vercel-deployment-url",
+  "x-vercel-forwarded-for",
+  "x-vercel-id",
+  "x-vercel-ip-city",
+  "x-vercel-ip-continent",
+  "x-vercel-ip-country",
+  "x-vercel-ip-country-region",
+  "x-vercel-ip-latitude",
+  "x-vercel-ip-longitude",
+  "x-vercel-ip-timezone",
+]);
+
 type RouteContext = {
   params: Promise<{ path?: string[] }>;
 };
@@ -31,9 +50,12 @@ function buildForwardHeaders(request: NextRequest) {
 
   request.headers.forEach((value, key) => {
     const lowerKey = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lowerKey) || lowerKey === "host") return;
+    if (HOP_BY_HOP_HEADERS.has(lowerKey) || PROXY_HEADERS.has(lowerKey) || lowerKey === "host") return;
     headers.set(key, value);
   });
+
+  headers.set("x-forwarded-proto", "https");
+  headers.set("x-forwarded-host", new URL(BACKEND_BASE).host);
 
   return headers;
 }
