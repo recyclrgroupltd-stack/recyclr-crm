@@ -26,8 +26,9 @@ type ServiceRow = {
 };
 
 type SiteRow = {
-  id: number;
+  id: number | string;
   customer_id: number | null;
+  customer_uid?: string;
   customer_name?: string;
   site_name?: string;
   address_line_1?: string;
@@ -35,6 +36,27 @@ type SiteRow = {
   town?: string;
   county?: string;
   postcode?: string;
+};
+
+type CustomerRow = {
+  id: number;
+  customer_uid?: string;
+  business_name: string;
+  status?: string;
+  address_line_1?: string;
+  address_line_2?: string;
+  town?: string;
+  county?: string;
+  postcode?: string;
+  sites?: Array<{
+    id?: number;
+    site_name?: string;
+    address_line_1?: string;
+    address_line_2?: string;
+    town?: string;
+    county?: string;
+    postcode?: string;
+  }>;
 };
 
 type GeocodeResult = {
@@ -275,6 +297,8 @@ export default function ServiceMapPage() {
   const [unmapped, setUnmapped] = useState<UnmappedService[]>([]);
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -288,8 +312,40 @@ export default function ServiceMapPage() {
   useEffect(() => {
     let cancelled = false;
 
+    function addTiles(L: LeafletModule, map: LeafletMap, fallback = false) {
+      const tileUrl = fallback
+        ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+      const attribution = fallback
+        ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+      const layer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        attribution,
+      });
+      let tileErrors = 0;
+      layer.on("load", () => {
+        if (!cancelled) {
+          setMapReady(true);
+          setMapError("");
+        }
+      });
+      layer.on("tileerror", () => {
+        tileErrors += 1;
+        if (!fallback && tileErrors >= 3 && map.hasLayer(layer)) {
+          map.removeLayer(layer);
+          addTiles(L, map, true);
+        } else if (fallback && tileErrors >= 3 && !cancelled) {
+          setMapError("Map tiles are not loading. The data filters still work, but the map tile provider may be blocked on this network.");
+        }
+      });
+      layer.addTo(map);
+    }
+
     async function setupMap() {
       if (!mapContainerRef.current || mapRef.current) return;
+      setMapReady(false);
+      setMapError("");
       const L = await import("leaflet");
       if (cancelled || !mapContainerRef.current) return;
 
@@ -299,10 +355,14 @@ export default function ServiceMapPage() {
         zoom: 6,
         scrollWheelZoom: true,
       });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(mapRef.current);
+      addTiles(L, mapRef.current);
+      window.setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 120);
+      window.setTimeout(() => {
+        mapRef.current?.invalidateSize();
+        if (!cancelled) setMapReady(true);
+      }, 650);
     }
 
     setupMap();
@@ -322,15 +382,18 @@ export default function ServiceMapPage() {
       setGeocoding(true);
       setError("");
 
-      const [servicesResponse, sitesResponse] = await Promise.all([
+      const [servicesResponse, sitesResponse, customersResponse] = await Promise.all([
         fetch("/api/services/", { headers: getAuthHeaders() }),
         fetch("/api/customers/sites/", { headers: getAuthHeaders() }),
+        fetch("/api/customers/", { headers: getAuthHeaders() }),
       ]);
       const servicesData = await readApiPayload(servicesResponse, "Could not load services for the map.");
       const sitesData = await readApiPayload(sitesResponse, "Could not load customer sites for the map.");
+      const customersData = await readApiPayload(customersResponse, "Could not load customers for the map.");
 
       if (!servicesResponse.ok) throw new Error(servicesData?.message || "Could not load services for the map.");
       if (!sitesResponse.ok) throw new Error(sitesData?.message || "Could not load customer sites for the map.");
+      if (!customersResponse.ok) throw new Error(customersData?.message || "Could not load customers for the map.");
 
       const serviceRows: ServiceRow[] = Array.isArray(servicesData)
         ? servicesData
@@ -346,19 +409,77 @@ export default function ServiceMapPage() {
           : Array.isArray(sitesData?.sites)
             ? sitesData.sites
             : [];
+      const customerRows: CustomerRow[] = Array.isArray(customersData)
+        ? customersData
+        : Array.isArray(customersData?.rows)
+          ? customersData.rows
+          : Array.isArray(customersData?.customers)
+            ? customersData.customers
+            : [];
 
-      const siteById = new Map(siteRows.map((site) => [Number(site.id), site]));
+      const expandedSites = [...siteRows];
+      const siteKeys = new Set(expandedSites.map((site) => String(site.id)));
+      for (const customer of customerRows) {
+        if (normalizePostcode(customer.postcode)) {
+          const primaryKey = `customer-${customer.id}`;
+          if (!siteKeys.has(primaryKey)) {
+            expandedSites.push({
+              id: primaryKey,
+              customer_id: customer.id,
+              customer_uid: customer.customer_uid || "",
+              customer_name: customer.business_name,
+              site_name: "Customer account",
+              address_line_1: customer.address_line_1 || "",
+              address_line_2: customer.address_line_2 || "",
+              town: customer.town || "",
+              county: customer.county || "",
+              postcode: customer.postcode || "",
+            });
+            siteKeys.add(primaryKey);
+          }
+        }
+
+        for (const site of customer.sites || []) {
+          if (!site.id || siteKeys.has(String(site.id))) continue;
+          expandedSites.push({
+            id: site.id,
+            customer_id: customer.id,
+            customer_uid: customer.customer_uid || "",
+            customer_name: customer.business_name,
+            site_name: site.site_name || "Customer site",
+            address_line_1: site.address_line_1 || "",
+            address_line_2: site.address_line_2 || "",
+            town: site.town || "",
+            county: site.county || "",
+            postcode: site.postcode || "",
+          });
+          siteKeys.add(String(site.id));
+        }
+      }
+
+      const siteById = new Map<number, SiteRow>();
+      for (const site of expandedSites) {
+        const numericId = Number(site.id);
+        if (Number.isFinite(numericId)) siteById.set(numericId, site);
+      }
       const cache = readGeocodeCache();
       const offsetCounts = new Map<string, number>();
       const customerOffsetCounts = new Map<string, number>();
       const skipped: UnmappedService[] = [];
       const servicesBySite = new Map<number, ServiceRow[]>();
+      const servicesByCustomer = new Map<number, ServiceRow[]>();
 
       for (const service of serviceRows) {
-        if (!service.site_id) continue;
-        const siteServices = servicesBySite.get(Number(service.site_id)) || [];
-        siteServices.push(service);
-        servicesBySite.set(Number(service.site_id), siteServices);
+        if (service.site_id) {
+          const siteServices = servicesBySite.get(Number(service.site_id)) || [];
+          siteServices.push(service);
+          servicesBySite.set(Number(service.site_id), siteServices);
+        }
+        if (service.customer_id) {
+          const customerServices = servicesByCustomer.get(Number(service.customer_id)) || [];
+          customerServices.push(service);
+          servicesByCustomer.set(Number(service.customer_id), customerServices);
+        }
       }
 
       const mapped = await mapWithConcurrency(serviceRows, 6, async (service) => {
@@ -390,7 +511,7 @@ export default function ServiceMapPage() {
         } satisfies MapPoint;
       });
 
-      const mappedCustomers = await mapWithConcurrency(siteRows, 6, async (site) => {
+      const mappedCustomers = await mapWithConcurrency(expandedSites, 6, async (site) => {
         const postcode = normalizePostcode(site.postcode);
         if (!postcode) return null;
 
@@ -400,7 +521,7 @@ export default function ServiceMapPage() {
         const coordinateKey = `${geocode.lat.toFixed(5)},${geocode.lng.toFixed(5)}`;
         const offsetIndex = customerOffsetCounts.get(coordinateKey) || 0;
         customerOffsetCounts.set(coordinateKey, offsetIndex + 1);
-        const siteServices = servicesBySite.get(Number(site.id)) || [];
+        const siteServices = servicesBySite.get(Number(site.id)) || (site.customer_id ? servicesByCustomer.get(Number(site.customer_id)) || [] : []);
         const streamLabels = Array.from(
           new Set(siteServices.map((service) => streamStyle(service.waste_type, service.waste_type_label).label)),
         ).sort();
@@ -422,7 +543,7 @@ export default function ServiceMapPage() {
       const streams = Array.from(new Set(serviceRows.map((row) => row.waste_type).filter(Boolean)));
 
       setServices(serviceRows);
-      setSites(siteRows);
+      setSites(expandedSites);
       setPoints(validPoints);
       setCustomerPoints(validCustomerPoints);
       setUnmapped(skipped);
@@ -763,7 +884,21 @@ export default function ServiceMapPage() {
                 OpenStreetMap
               </div>
             </div>
-            <div ref={mapContainerRef} className="h-[520px] w-full bg-slate-100 md:h-[680px]" />
+            <div className="relative">
+              <div ref={mapContainerRef} className="h-[520px] w-full bg-slate-100 md:h-[680px]" />
+              {!mapReady ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-100/80">
+                  <div className="rounded-md bg-white px-4 py-3 text-sm font-black text-slate-700 shadow-sm">
+                    Loading map...
+                  </div>
+                </div>
+              ) : null}
+              {mapError ? (
+                <div className="absolute left-4 right-4 top-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-sm">
+                  {mapError}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="space-y-5">
