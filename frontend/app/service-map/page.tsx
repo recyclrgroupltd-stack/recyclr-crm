@@ -43,6 +43,7 @@ type GeocodeResult = {
 };
 
 type MapPoint = {
+  kind: "service";
   key: string;
   service: ServiceRow;
   site: SiteRow | null;
@@ -51,10 +52,25 @@ type MapPoint = {
   offsetIndex: number;
 };
 
+type CustomerPoint = {
+  kind: "customer";
+  key: string;
+  site: SiteRow;
+  serviceCount: number;
+  streamLabels: string[];
+  lat: number;
+  lng: number;
+  offsetIndex: number;
+};
+
+type VisiblePoint = MapPoint | CustomerPoint;
+
 type UnmappedService = {
   service: ServiceRow;
   reason: string;
 };
+
+type MapLayer = "customers" | "services";
 
 const GEOCODE_CACHE_KEY = "recyclr_service_map_geocode_cache_v1";
 
@@ -165,7 +181,25 @@ function makeMarkerHtml(color: string, label: string) {
   `;
 }
 
-function makePopupHtml(point: MapPoint) {
+function makeCustomerMarkerHtml(label: string) {
+  return `
+    <span style="
+      display:flex;
+      width:24px;
+      height:24px;
+      align-items:center;
+      justify-content:center;
+      border-radius:9999px;
+      background:white;
+      border:4px solid #7c3aed;
+      box-shadow:0 12px 26px rgba(15, 23, 42, 0.38);
+    " title="${escapeHtml(label)}">
+      <span style="display:block; width:8px; height:8px; border-radius:9999px; background:#b6ff3b;"></span>
+    </span>
+  `;
+}
+
+function makeServicePopupHtml(point: MapPoint) {
   const service = point.service;
   const site = point.site;
   const style = streamStyle(service.waste_type, service.waste_type_label);
@@ -201,6 +235,33 @@ function makePopupHtml(point: MapPoint) {
   `;
 }
 
+function makeCustomerPopupHtml(point: CustomerPoint) {
+  const site = point.site;
+  const address = [site.address_line_1, site.address_line_2, site.town, site.county, site.postcode]
+    .filter(Boolean)
+    .join(", ");
+
+  return `
+    <div style="min-width:230px; max-width:280px;">
+      <div style="font-size:14px; font-weight:900; color:#020617;">${escapeHtml(site.customer_name || "Customer")}</div>
+      <div style="margin-top:2px; font-size:12px; font-weight:700; color:#475569;">${escapeHtml(site.site_name || "Customer site")}</div>
+      <div style="margin-top:10px; display:inline-flex; border-radius:999px; padding:5px 9px; background:#7c3aed; color:white; font-size:11px; font-weight:900;">
+        Customer location
+      </div>
+      <div style="margin-top:10px; font-size:12px; color:#334155;">
+        <strong>Services:</strong> ${point.serviceCount}<br />
+        <strong>Streams:</strong> ${escapeHtml(point.streamLabels.length ? point.streamLabels.join(", ") : "No active streams found")}<br />
+        <strong>Address:</strong> ${escapeHtml(address || "No address")}
+      </div>
+      ${
+        site.customer_id
+          ? `<a href="/customers/${site.customer_id}" style="margin-top:12px; display:block; border-radius:6px; background:#6d00e8; color:white; padding:9px 10px; text-align:center; font-size:12px; font-weight:900; text-decoration:none;">Open customer</a>`
+          : ""
+      }
+    </div>
+  `;
+}
+
 export default function ServiceMapPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -210,6 +271,7 @@ export default function ServiceMapPage() {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [sites, setSites] = useState<SiteRow[]>([]);
   const [points, setPoints] = useState<MapPoint[]>([]);
+  const [customerPoints, setCustomerPoints] = useState<CustomerPoint[]>([]);
   const [unmapped, setUnmapped] = useState<UnmappedService[]>([]);
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
@@ -217,6 +279,7 @@ export default function ServiceMapPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedStreams, setSelectedStreams] = useState<string[]>([]);
+  const [selectedLayers, setSelectedLayers] = useState<MapLayer[]>(["customers", "services"]);
 
   useEffect(() => {
     document.title = "Service Map - Recyclr";
@@ -287,7 +350,16 @@ export default function ServiceMapPage() {
       const siteById = new Map(siteRows.map((site) => [Number(site.id), site]));
       const cache = readGeocodeCache();
       const offsetCounts = new Map<string, number>();
+      const customerOffsetCounts = new Map<string, number>();
       const skipped: UnmappedService[] = [];
+      const servicesBySite = new Map<number, ServiceRow[]>();
+
+      for (const service of serviceRows) {
+        if (!service.site_id) continue;
+        const siteServices = servicesBySite.get(Number(service.site_id)) || [];
+        siteServices.push(service);
+        servicesBySite.set(Number(service.site_id), siteServices);
+      }
 
       const mapped = await mapWithConcurrency(serviceRows, 6, async (service) => {
         const site = service.site_id ? siteById.get(Number(service.site_id)) || null : null;
@@ -308,6 +380,7 @@ export default function ServiceMapPage() {
         offsetCounts.set(coordinateKey, offsetIndex + 1);
 
         return {
+          kind: "service",
           key: `${service.id}-${coordinateKey}`,
           service,
           site,
@@ -317,12 +390,41 @@ export default function ServiceMapPage() {
         } satisfies MapPoint;
       });
 
+      const mappedCustomers = await mapWithConcurrency(siteRows, 6, async (site) => {
+        const postcode = normalizePostcode(site.postcode);
+        if (!postcode) return null;
+
+        const geocode = await geocodePostcode(postcode, cache);
+        if (!geocode) return null;
+
+        const coordinateKey = `${geocode.lat.toFixed(5)},${geocode.lng.toFixed(5)}`;
+        const offsetIndex = customerOffsetCounts.get(coordinateKey) || 0;
+        customerOffsetCounts.set(coordinateKey, offsetIndex + 1);
+        const siteServices = servicesBySite.get(Number(site.id)) || [];
+        const streamLabels = Array.from(
+          new Set(siteServices.map((service) => streamStyle(service.waste_type, service.waste_type_label).label)),
+        ).sort();
+
+        return {
+          kind: "customer",
+          key: `customer-${site.id}-${coordinateKey}`,
+          site,
+          serviceCount: siteServices.length,
+          streamLabels,
+          lat: geocode.lat,
+          lng: geocode.lng,
+          offsetIndex,
+        } satisfies CustomerPoint;
+      });
+
       const validPoints = mapped.filter(Boolean) as MapPoint[];
+      const validCustomerPoints = mappedCustomers.filter(Boolean) as CustomerPoint[];
       const streams = Array.from(new Set(serviceRows.map((row) => row.waste_type).filter(Boolean)));
 
       setServices(serviceRows);
       setSites(siteRows);
       setPoints(validPoints);
+      setCustomerPoints(validCustomerPoints);
       setUnmapped(skipped);
       setSelectedStreams((current) => (current.length ? current.filter((item) => streams.includes(item)) : streams));
     } catch (err) {
@@ -330,6 +432,7 @@ export default function ServiceMapPage() {
       setServices([]);
       setSites([]);
       setPoints([]);
+      setCustomerPoints([]);
       setUnmapped([]);
     } finally {
       setLoading(false);
@@ -374,10 +477,39 @@ export default function ServiceMapPage() {
     });
   }, [points, search, selectedStreams, statusFilter]);
 
+  const filteredCustomerPoints = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return customerPoints.filter((point) => {
+      if (!term) return true;
+      const site = point.site;
+      return [
+        site.customer_name,
+        site.site_name,
+        site.address_line_1,
+        site.address_line_2,
+        site.town,
+        site.county,
+        site.postcode,
+        point.streamLabels.join(" "),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [customerPoints, search]);
+
+  const visiblePoints = useMemo(() => {
+    const next: VisiblePoint[] = [];
+    if (selectedLayers.includes("customers")) next.push(...filteredCustomerPoints);
+    if (selectedLayers.includes("services")) next.push(...filteredPoints);
+    return next;
+  }, [filteredCustomerPoints, filteredPoints, selectedLayers]);
+
   const filteredSiteCount = useMemo(() => {
-    const siteKeys = new Set(filteredPoints.map((point) => point.service.site_id || point.site?.id || point.key));
+    const siteKeys = new Set(visiblePoints.map((point) => (point.kind === "service" ? point.service.site_id || point.site?.id || point.key : point.site.id)));
     return siteKeys.size;
-  }, [filteredPoints]);
+  }, [visiblePoints]);
 
   const activeCount = useMemo(() => filteredPoints.filter((point) => point.service.status === "active").length, [filteredPoints]);
 
@@ -392,10 +524,10 @@ export default function ServiceMapPage() {
   const fitToResults = useCallback(() => {
     const L = leafletRef.current;
     const map = mapRef.current;
-    if (!L || !map || filteredPoints.length === 0) return;
-    const bounds = filteredPoints.map((point) => [point.lat, point.lng]) as LatLngBoundsExpression;
+    if (!L || !map || visiblePoints.length === 0) return;
+    const bounds = visiblePoints.map((point) => [point.lat, point.lng]) as LatLngBoundsExpression;
     map.fitBounds(bounds, { padding: [36, 36], maxZoom: 13 });
-  }, [filteredPoints]);
+  }, [visiblePoints]);
 
   useEffect(() => {
     const L = leafletRef.current;
@@ -408,9 +540,9 @@ export default function ServiceMapPage() {
     }
 
     const layer = L.layerGroup();
-    for (const point of filteredPoints) {
-      const style = streamStyle(point.service.waste_type, point.service.waste_type_label);
-      const spread = 0.00075;
+    for (const point of visiblePoints) {
+      const style = point.kind === "service" ? streamStyle(point.service.waste_type, point.service.waste_type_label) : null;
+      const spread = point.kind === "service" ? 0.00075 : 0.0012;
       const angle = (point.offsetIndex % 10) * ((Math.PI * 2) / 10);
       const radius = point.offsetIndex === 0 ? 0 : spread * (1 + Math.floor(point.offsetIndex / 10));
       const lat = point.lat + Math.sin(angle) * radius;
@@ -418,25 +550,25 @@ export default function ServiceMapPage() {
       const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: "",
-          html: makeMarkerHtml(style.color, style.label),
-          iconSize: [18, 18],
-          iconAnchor: [9, 9],
+          html: point.kind === "service" ? makeMarkerHtml(style?.color || "#7c3aed", style?.label || "Service") : makeCustomerMarkerHtml(point.site.customer_name || "Customer"),
+          iconSize: point.kind === "service" ? [18, 18] : [24, 24],
+          iconAnchor: point.kind === "service" ? [9, 9] : [12, 12],
           popupAnchor: [0, -8],
         }),
       });
-      marker.bindPopup(makePopupHtml(point), { className: "service-map-popup" });
+      marker.bindPopup(point.kind === "service" ? makeServicePopupHtml(point) : makeCustomerPopupHtml(point), { className: "service-map-popup" });
       marker.addTo(layer);
     }
 
     layer.addTo(map);
     layerRef.current = layer;
-  }, [filteredPoints]);
+  }, [visiblePoints]);
 
   useEffect(() => {
-    if (!loading && filteredPoints.length) {
+    if (!loading && visiblePoints.length) {
       window.setTimeout(fitToResults, 120);
     }
-  }, [fitToResults, filteredPoints.length, loading]);
+  }, [fitToResults, loading, visiblePoints.length]);
 
   function toggleStream(stream: string) {
     setSelectedStreams((current) => {
@@ -453,6 +585,13 @@ export default function ServiceMapPage() {
     setSelectedStreams([]);
   }
 
+  function toggleLayer(layer: MapLayer) {
+    setSelectedLayers((current) => {
+      if (current.includes(layer)) return current.filter((item) => item !== layer);
+      return [...current, layer];
+    });
+  }
+
   return (
     <StaffShell title="Service Map">
       <div className="space-y-5">
@@ -461,7 +600,7 @@ export default function ServiceMapPage() {
             <div>
               <h1 className="text-3xl font-black text-slate-950">Service Map</h1>
               <p className="mt-1 max-w-3xl text-sm font-semibold text-slate-600">
-                See customer service coverage across the country. Each dot is a service waste stream, and each popup links back to the customer record.
+                See customer coverage and waste-stream services across the country. Customer dots and service stream dots can be filtered together or separately.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -492,12 +631,16 @@ export default function ServiceMapPage() {
 
         <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-lg bg-white p-5 shadow-sm">
-            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Mapped Services</div>
+            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Visible Dots</div>
+            <div className="mt-2 text-3xl font-black text-slate-950">{visiblePoints.length}</div>
+          </div>
+          <div className="rounded-lg bg-white p-5 shadow-sm">
+            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Service Dots</div>
             <div className="mt-2 text-3xl font-black text-slate-950">{filteredPoints.length}</div>
           </div>
           <div className="rounded-lg bg-white p-5 shadow-sm">
-            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Customer Sites</div>
-            <div className="mt-2 text-3xl font-black text-slate-950">{filteredSiteCount}</div>
+            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Customer Dots</div>
+            <div className="mt-2 text-3xl font-black text-slate-950">{filteredCustomerPoints.length}</div>
           </div>
           <div className="rounded-lg bg-white p-5 shadow-sm">
             <div className="text-xs font-black uppercase tracking-wide text-slate-400">Active Services</div>
@@ -537,6 +680,38 @@ export default function ServiceMapPage() {
           </div>
 
           <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="mb-4">
+              <div className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">Map layers</div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleLayer("customers")}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${
+                    selectedLayers.includes("customers")
+                      ? "border-violet-700 bg-violet-700 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="h-3 w-3 rounded-full border-2 border-violet-700 bg-lime-300" />
+                  Customers
+                  <span className={selectedLayers.includes("customers") ? "text-white/70" : "text-slate-400"}>{filteredCustomerPoints.length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleLayer("services")}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${
+                    selectedLayers.includes("services")
+                      ? "border-slate-950 bg-slate-950 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="h-3 w-3 rounded-full bg-sky-500" />
+                  Waste streams
+                  <span className={selectedLayers.includes("services") ? "text-white/70" : "text-slate-400"}>{filteredPoints.length}</span>
+                </button>
+              </div>
+            </div>
+
             <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <div className="text-xs font-black uppercase tracking-wide text-slate-500">Waste streams</div>
               <div className="flex gap-2">
@@ -581,7 +756,7 @@ export default function ServiceMapPage() {
               <div>
                 <h2 className="text-xl font-black text-slate-950">Coverage View</h2>
                 <p className="text-sm font-semibold text-slate-600">
-                  {loading || geocoding ? "Loading and mapping postcodes..." : `${filteredPoints.length} visible service dots.`}
+                  {loading || geocoding ? "Loading and mapping postcodes..." : `${visiblePoints.length} visible dots across ${filteredSiteCount} sites.`}
                 </p>
               </div>
               <div className="rounded-full bg-lime-100 px-3 py-1 text-xs font-black text-lime-800">
