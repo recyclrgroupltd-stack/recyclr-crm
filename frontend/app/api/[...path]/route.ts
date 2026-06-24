@@ -19,23 +19,14 @@ const HOP_BY_HOP_HEADERS = new Set([
   "upgrade",
 ]);
 
-const PROXY_HEADERS = new Set([
-  "forwarded",
-  "x-forwarded-for",
-  "x-forwarded-host",
-  "x-forwarded-port",
-  "x-forwarded-proto",
-  "x-real-ip",
-  "x-vercel-deployment-url",
-  "x-vercel-forwarded-for",
-  "x-vercel-id",
-  "x-vercel-ip-city",
-  "x-vercel-ip-continent",
-  "x-vercel-ip-country",
-  "x-vercel-ip-country-region",
-  "x-vercel-ip-latitude",
-  "x-vercel-ip-longitude",
-  "x-vercel-ip-timezone",
+const FORWARDED_REQUEST_HEADERS = new Set([
+  "accept",
+  "authorization",
+  "content-type",
+  "x-csrftoken",
+  "x-requested-with",
+  "x-staff-token",
+  "x-staff-username",
 ]);
 
 type RouteContext = {
@@ -53,7 +44,7 @@ function buildForwardHeaders(request: NextRequest) {
 
   request.headers.forEach((value, key) => {
     const lowerKey = key.toLowerCase();
-    if (HOP_BY_HOP_HEADERS.has(lowerKey) || PROXY_HEADERS.has(lowerKey) || lowerKey === "host") return;
+    if (HOP_BY_HOP_HEADERS.has(lowerKey) || !FORWARDED_REQUEST_HEADERS.has(lowerKey)) return;
     headers.set(key, value);
   });
 
