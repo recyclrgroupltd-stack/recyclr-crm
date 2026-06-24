@@ -634,7 +634,7 @@ export default function StaffPage() {
           <div className="rounded-lg border border-violet-100 bg-white p-5 text-slate-950 shadow-sm">
             <h2 className="text-xl font-semibold">Staff Roles & Permissions</h2>
             <p className="mt-2 text-sm font-medium text-slate-500">
-              Roles provide the default permissions. Per-user overrides let you allow or deny individual permissions without changing the user's role.
+              Roles provide the default permissions. Per-user overrides let you allow or deny individual permissions without changing the user&apos;s role.
             </p>
 
             {canManage ? (

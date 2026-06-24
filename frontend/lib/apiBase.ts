@@ -6,8 +6,25 @@ export const BACKEND_BASE = process.env.NEXT_PUBLIC_BACKEND_BASE || HOSTED_BACKE
 
 const STAFF_API_BASE = BACKEND_BASE;
 
+function shouldUseSameOriginProxy() {
+  if (typeof window === "undefined") return false;
+
+  const hostname = window.location.hostname;
+  return (
+    hostname === "recyclrgroup.co.uk" ||
+    hostname === "www.recyclrgroup.co.uk" ||
+    hostname.endsWith(".vercel.app")
+  );
+}
+
 export function apiPath(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (
+    shouldUseSameOriginProxy() &&
+    (normalizedPath.startsWith("/api/") || normalizedPath.startsWith("/media/"))
+  ) {
+    return normalizedPath;
+  }
   return `${STAFF_API_BASE}${normalizedPath}`;
 }
 
@@ -15,6 +32,7 @@ export const CUSTOMER_PORTAL_API_BASE = apiPath("/api/customers/portal");
 
 export function toBackendUrl(url: string) {
   if (url.startsWith("/api/")) {
+    if (shouldUseSameOriginProxy()) return url;
     return `${BACKEND_BASE}${url}`;
   }
 
