@@ -522,6 +522,9 @@ def maintenance_list(request):
     if payload is None:
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
+    if not payload.get("container_id"):
+        return JsonResponse({"success": False, "message": "Container is required."}, status=400)
+
     container = get_object_or_404(Container, pk=payload.get("container_id"))
     title = str(payload.get("title") or "").strip()
     notes = str(payload.get("notes") or "").strip()

@@ -1,5 +1,7 @@
 import json
 
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -24,6 +26,41 @@ def _date_from_payload(data, key):
     if not value:
         return None
     return parse_date(str(value))
+
+
+def _validate_price_payload(data, *, is_new=False):
+    if is_new:
+        valid_waste_types = {value for value, _ in PriceBookItem.WASTE_TYPE_CHOICES}
+        valid_bin_sizes = {value for value, _ in PriceBookItem.BIN_SIZE_CHOICES}
+
+        if data.get("waste_type") not in valid_waste_types:
+            return "Choose a valid waste type."
+        if data.get("bin_size") not in valid_bin_sizes:
+            return "Choose a valid bin size."
+
+    for key in [
+        "price_per_lift",
+        "rental_per_day",
+        "supplier_price_per_lift",
+        "supplier_rental_per_day",
+        "delivery_charge",
+        "minimum_monthly_charge",
+        "target_margin_percent",
+    ]:
+        value = data.get(key)
+        if value in ("", None):
+            continue
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            return f"{key.replace('_', ' ').title()} must be a number."
+
+    if _date_from_payload(data, "effective_from") is None and data.get("effective_from"):
+        return "Effective from date is invalid."
+    if _date_from_payload(data, "effective_to") is None and data.get("effective_to"):
+        return "Effective to date is invalid."
+
+    return ""
 
 
 def _require_pricing_view_access(request):
@@ -94,23 +131,32 @@ def pricing_create(request):
         except json.JSONDecodeError:
             return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
+        validation_message = _validate_price_payload(data, is_new=True)
+        if validation_message:
+            return JsonResponse({"success": False, "message": validation_message}, status=400)
+
         default_margin = CompanyDetails.get_solo().default_target_margin_percent or 30
 
-        item = PriceBookItem.objects.create(
-            waste_type=data.get("waste_type"),
-            bin_size=data.get("bin_size"),
-            price_per_lift=_decimal_from_payload(data, "price_per_lift", 0),
-            rental_per_day=_decimal_from_payload(data, "rental_per_day", 0.25),
-            supplier_price_per_lift=_decimal_from_payload(data, "supplier_price_per_lift", 0),
-            supplier_rental_per_day=_decimal_from_payload(data, "supplier_rental_per_day", 0),
-            delivery_charge=_decimal_from_payload(data, "delivery_charge", 0),
-            minimum_monthly_charge=_decimal_from_payload(data, "minimum_monthly_charge", 0),
-            target_margin_percent=_decimal_from_payload(data, "target_margin_percent", default_margin),
-            effective_from=_date_from_payload(data, "effective_from"),
-            effective_to=_date_from_payload(data, "effective_to"),
-            notes=data.get("notes", "") or "",
-            active=data.get("active", True),
-        )
+        try:
+            item = PriceBookItem.objects.create(
+                waste_type=data.get("waste_type"),
+                bin_size=data.get("bin_size"),
+                price_per_lift=_decimal_from_payload(data, "price_per_lift", 0),
+                rental_per_day=_decimal_from_payload(data, "rental_per_day", 0.25),
+                supplier_price_per_lift=_decimal_from_payload(data, "supplier_price_per_lift", 0),
+                supplier_rental_per_day=_decimal_from_payload(data, "supplier_rental_per_day", 0),
+                delivery_charge=_decimal_from_payload(data, "delivery_charge", 0),
+                minimum_monthly_charge=_decimal_from_payload(data, "minimum_monthly_charge", 0),
+                target_margin_percent=_decimal_from_payload(data, "target_margin_percent", default_margin),
+                effective_from=_date_from_payload(data, "effective_from"),
+                effective_to=_date_from_payload(data, "effective_to"),
+                notes=data.get("notes", "") or "",
+                active=data.get("active", True),
+            )
+        except IntegrityError:
+            return JsonResponse({"success": False, "message": "A price already exists for that waste type and bin size."}, status=400)
+        except ValidationError as exc:
+            return JsonResponse({"success": False, "message": " ".join(exc.messages)}, status=400)
 
         return JsonResponse({"success": True, "item": _serialize_item(item)})
 
@@ -129,6 +175,10 @@ def pricing_update(request, item_id):
         except json.JSONDecodeError:
             return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
+        validation_message = _validate_price_payload(data)
+        if validation_message:
+            return JsonResponse({"success": False, "message": validation_message}, status=400)
+
         item = get_object_or_404(PriceBookItem, id=item_id)
         item.price_per_lift = _decimal_from_payload(data, "price_per_lift", item.price_per_lift)
         item.rental_per_day = _decimal_from_payload(data, "rental_per_day", item.rental_per_day)
@@ -141,7 +191,10 @@ def pricing_update(request, item_id):
         item.effective_to = _date_from_payload(data, "effective_to")
         item.notes = data.get("notes", item.notes) or ""
         item.active = data.get("active", item.active)
-        item.save()
+        try:
+            item.save()
+        except ValidationError as exc:
+            return JsonResponse({"success": False, "message": " ".join(exc.messages)}, status=400)
 
         return JsonResponse({"success": True, "item": _serialize_item(item)})
 
