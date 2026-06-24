@@ -54,7 +54,7 @@ export default function NewQuotePage() {
       setCreating(true);
       setError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/quotes/", {
+      const response = await fetch("/api/quotes/", {
         method: "POST",
         headers: getAuthHeaders({
           "Content-Type": "application/json",

@@ -408,7 +408,7 @@ function SendEmailBox({
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/communications/send/", {
+      const res = await fetch("/api/communications/send/", {
         method: "POST",
         headers: getAuthHeaders({
           "Content-Type": "application/json",
@@ -517,7 +517,7 @@ function EmailHistory({ customerId, refreshKey }: { customerId: number; refreshK
         setLoading(true);
         setError("");
 
-        const res = await fetch(`http://127.0.0.1:8000/api/communications/customer/${customerId}/`);
+        const res = await fetch(`/api/communications/customer/${customerId}/`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -633,7 +633,7 @@ export default function CustomerOverviewPage() {
         setLoading(true);
         setError("");
 
-        const res = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/overview/`);
+        const res = await fetch(`/api/customers/${customerId}/overview/`);
         const json = (await res.json()) as OverviewResponse;
 
         if (!res.ok) {
@@ -659,7 +659,7 @@ export default function CustomerOverviewPage() {
 
     async function loadStaffOptions() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/auth/staff/", {
+        const response = await fetch("/api/auth/staff/", {
           headers: getAuthHeaders(),
         });
         const json = await response.json();
@@ -680,7 +680,7 @@ export default function CustomerOverviewPage() {
     setManagerError("");
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/account-manager/`, {
+      const response = await fetch(`/api/customers/${customerId}/account-manager/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -691,7 +691,7 @@ export default function CustomerOverviewPage() {
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.message || "Could not update account manager.");
 
-      const refresh = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/overview/`);
+      const refresh = await fetch(`/api/customers/${customerId}/overview/`);
       const refreshJson = await refresh.json();
       if (refresh.ok) {
         setData(refreshJson);
@@ -710,7 +710,7 @@ export default function CustomerOverviewPage() {
   }
 
   async function refreshOverview() {
-    const refresh = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/overview/`);
+    const refresh = await fetch(`/api/customers/${customerId}/overview/`);
     const refreshJson = await refresh.json();
     if (refresh.ok) {
       setData(refreshJson);
@@ -724,7 +724,7 @@ export default function CustomerOverviewPage() {
     setInvoiceError("");
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/invoices/generate/`, {
+      const response = await fetch(`/api/customers/${customerId}/invoices/generate/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -751,7 +751,7 @@ export default function CustomerOverviewPage() {
         setDocumentsLoading(true);
         setDocumentsError("");
 
-        const res = await fetch(`http://127.0.0.1:8000/api/documents/customer/${customerId}/`);
+        const res = await fetch(`/api/documents/customer/${customerId}/`);
         const json: unknown = await res.json();
 
         if (!res.ok) {
@@ -802,7 +802,7 @@ export default function CustomerOverviewPage() {
         setCollectionsLoading(true);
         setCollectionsError("");
 
-        const res = await fetch(`http://127.0.0.1:8000/api/jobs/customer/${customerId}/`);
+        const res = await fetch(`/api/jobs/customer/${customerId}/`);
         const json: CustomerJobsResponse = await res.json();
 
         if (!res.ok || !json.success) {
@@ -912,7 +912,7 @@ export default function CustomerOverviewPage() {
     setNoteMessage("");
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/notes/create/`, {
+      const res = await fetch(`/api/customers/${customerId}/notes/create/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -932,7 +932,7 @@ export default function CustomerOverviewPage() {
       setQuickNote("");
       setNoteMessage("Note added successfully.");
 
-      const refresh = await fetch(`http://127.0.0.1:8000/api/customers/${customerId}/overview/`);
+      const refresh = await fetch(`/api/customers/${customerId}/overview/`);
       const refreshJson = await refresh.json();
       if (refresh.ok) {
         setData(refreshJson);
@@ -1417,7 +1417,7 @@ export default function CustomerOverviewPage() {
                               </div>
                             </div>
                             <a
-                              href={`http://127.0.0.1:8000${document.download_url}`}
+                              href={`${document.download_url}`}
                               target="_blank"
                               rel="noreferrer"
                               className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-800"
@@ -1449,7 +1449,7 @@ export default function CustomerOverviewPage() {
                         const downloadHref = document.file_url
                           ? document.file_url.startsWith("http")
                             ? document.file_url
-                            : `http://127.0.0.1:8000${document.file_url}`
+                            : `${document.file_url}`
                           : "";
 
                         return (

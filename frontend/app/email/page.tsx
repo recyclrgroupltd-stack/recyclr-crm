@@ -77,7 +77,7 @@ type ContextMenuState = {
   message: MailMessage;
 } | null;
 
-const API_BASE = "http://127.0.0.1:8000/api/email";
+const API_BASE = "/api/email";
 
 const defaultFolders: MailFolder[] = [
   { id: "inbox", label: "Inbox", total: 0, unread: 0 },

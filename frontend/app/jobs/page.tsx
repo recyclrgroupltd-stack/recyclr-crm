@@ -236,7 +236,7 @@ export default function JobsPage() {
     try {
       setLoading(true);
       setError("");
-      const response = await fetch("http://127.0.0.1:8000/api/jobs/", {
+      const response = await fetch("/api/jobs/", {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -258,7 +258,7 @@ export default function JobsPage() {
       formData.append("status", status);
       formData.append("status_updated_by", localStorage.getItem("recyclr_staff_name") || "Staff");
 
-      const response = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/update/`, {
+      const response = await fetch(`/api/jobs/${jobId}/update/`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: formData,
@@ -304,7 +304,7 @@ export default function JobsPage() {
       if (rescheduleEnabled && rescheduleDate) formData.append("reschedule_date", rescheduleDate);
       if (evidenceFile) formData.append("evidence_image", evidenceFile);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/jobs/${selectedJobId}/update/`, {
+      const response = await fetch(`/api/jobs/${selectedJobId}/update/`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: formData,

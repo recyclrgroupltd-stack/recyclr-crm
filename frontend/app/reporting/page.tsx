@@ -49,7 +49,7 @@ export default function ReportingPage() {
         setLoadingOptions(true);
         setError("");
 
-        const response = await fetch("http://127.0.0.1:8000/api/reporting/options/", { headers: getAuthHeaders() });
+        const response = await fetch("/api/reporting/options/", { headers: getAuthHeaders() });
         const data = await response.json();
 
         if (!response.ok) {
@@ -106,7 +106,7 @@ export default function ReportingPage() {
       const params = new URLSearchParams();
       params.set("quick_report", reportCode);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/reporting/run/?${params.toString()}`, { headers: getAuthHeaders() });
+      const response = await fetch(`/api/reporting/run/?${params.toString()}`, { headers: getAuthHeaders() });
       const data = await response.json();
 
       if (!response.ok || !data.success) {
@@ -137,7 +137,7 @@ export default function ReportingPage() {
       if (wasteType !== "all") params.set("waste_type", wasteType);
       if (haulierId !== "all") params.set("haulier_id", haulierId);
 
-      const response = await fetch(`http://127.0.0.1:8000/api/reporting/run/?${params.toString()}`, { headers: getAuthHeaders() });
+      const response = await fetch(`/api/reporting/run/?${params.toString()}`, { headers: getAuthHeaders() });
       const data = await response.json();
 
       if (!response.ok || !data.success) {

@@ -25,7 +25,7 @@ export default function SitesPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("http://127.0.0.1:8000/api/customers/sites/");
+        const response = await fetch("/api/customers/sites/");
         const text = await response.text();
 
         let result: SiteRow[] = [];

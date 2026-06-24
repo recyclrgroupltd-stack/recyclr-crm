@@ -78,8 +78,8 @@ export default function ContractSigningPage() {
       setLoading(true);
       setError("");
       const [quoteResponse, packResponse] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/quotes/"),
-        fetch("http://127.0.0.1:8000/api/documents/signing-packs/", { headers: getAuthHeaders() }),
+        fetch("/api/quotes/"),
+        fetch("/api/documents/signing-packs/", { headers: getAuthHeaders() }),
       ]);
       const quoteData = await quoteResponse.json();
       const packData = await packResponse.json();
@@ -113,7 +113,7 @@ export default function ContractSigningPage() {
     try {
       setError("");
       setNotice("");
-      const response = await fetch("http://127.0.0.1:8000/api/documents/signing-packs/create/", {
+      const response = await fetch("/api/documents/signing-packs/create/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -142,7 +142,7 @@ export default function ContractSigningPage() {
       setBusyId(packId);
       setError("");
       setNotice("");
-      const response = await fetch(`http://127.0.0.1:8000/api/documents/signing-packs/${packId}/send/`, {
+      const response = await fetch(`/api/documents/signing-packs/${packId}/send/`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -166,7 +166,7 @@ export default function ContractSigningPage() {
     try {
       setBusyId(packId);
       setError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/documents/signing-packs/${packId}/cancel/`, {
+      const response = await fetch(`/api/documents/signing-packs/${packId}/cancel/`, {
         method: "POST",
         headers: getAuthHeaders(),
       });

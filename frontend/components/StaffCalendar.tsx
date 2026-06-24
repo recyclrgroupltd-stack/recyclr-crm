@@ -72,7 +72,7 @@ type CalendarCustomer = {
   postcode?: string;
 };
 
-const API_BASE = "http://127.0.0.1:8000/api/staff-calendar";
+const API_BASE = "/api/staff-calendar";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const viewOptions: CalendarView[] = ["day", "week", "month", "year"];
 
@@ -239,8 +239,8 @@ export default function StaffCalendar({ staffUser, currentUser, onRequestCountCh
     async function loadMentionData() {
       try {
         const [staffResponse, customersResponse] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/auth/staff/", { headers: getAuthHeaders() }),
-          fetch("http://127.0.0.1:8000/api/customers/", { headers: getAuthHeaders() }),
+          fetch("/api/auth/staff/", { headers: getAuthHeaders() }),
+          fetch("/api/customers/", { headers: getAuthHeaders() }),
         ]);
         const staffData = await staffResponse.json();
         const customersData = await customersResponse.json();
@@ -347,7 +347,7 @@ export default function StaffCalendar({ staffUser, currentUser, onRequestCountCh
     const command = getNotesCommand();
     if (!command || command.type !== "customer") return;
     const label = `${customer.customer_uid || `Customer ${customer.id}`} - ${customer.business_name || "Unnamed customer"}`;
-    updateDescriptionWithInsert(command.start, command.end, `${label}: http://localhost:3000/customers/${customer.id} `);
+    updateDescriptionWithInsert(command.start, command.end, `${label}: https://www.recyclrgroup.co.uk/customers/${customer.id} `);
   }
 
   async function saveForm() {

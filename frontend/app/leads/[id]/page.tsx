@@ -485,7 +485,7 @@ export default function LeadDetailPage() {
       Object.entries(form).filter(([key]) => key !== "status")
     );
 
-    const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/`, {
+    const response = await fetch(`/api/leads/${leadId}/`, {
       method: "POST",
       headers: getAuthHeaders({
         "Content-Type": "application/json",
@@ -516,7 +516,7 @@ export default function LeadDetailPage() {
 
       try {
         setError("");
-        const response = await fetch(`http://127.0.0.1:8000/api/leads/${leadId}/`, {
+        const response = await fetch(`/api/leads/${leadId}/`, {
           headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -590,7 +590,7 @@ export default function LeadDetailPage() {
   useEffect(() => {
     async function loadPricing() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/pricing/", {
+        const response = await fetch("/api/pricing/", {
           headers: getAuthHeaders(),
         });
         const data = await readJsonResponse(response, "The CRM returned an unexpected response while loading the lead.");
@@ -668,7 +668,7 @@ export default function LeadDetailPage() {
         throw new Error("Add at least one valid waste stream before creating a quote.");
       }
 
-      const response = await fetch("http://127.0.0.1:8000/api/quotes/", {
+      const response = await fetch("/api/quotes/", {
         method: "POST",
         headers: getAuthHeaders({
           "Content-Type": "application/json",

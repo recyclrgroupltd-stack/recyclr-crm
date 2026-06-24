@@ -75,7 +75,6 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     }
   });
   responseHeaders.set("cache-control", "no-store");
-  responseHeaders.set("x-recyclr-proxy-method", method);
 
   return new NextResponse(response.body, {
     status: response.status,

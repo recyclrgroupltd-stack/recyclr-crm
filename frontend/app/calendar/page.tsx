@@ -26,7 +26,7 @@ export default function MyCalendarPage() {
         const storedUser = getStoredUser();
         if (storedUser) setCurrentUser(storedUser);
 
-        const response = await fetch("http://127.0.0.1:8000/api/auth/profile/me/", {
+        const response = await fetch("/api/auth/profile/me/", {
           headers: getAuthHeaders(),
         });
         const data = await response.json();

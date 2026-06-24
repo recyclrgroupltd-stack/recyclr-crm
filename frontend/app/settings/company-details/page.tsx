@@ -292,7 +292,7 @@ export default function CompanyDetailsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/company-details/", {
+      const res = await fetch("/api/auth/company-details/", {
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
@@ -349,7 +349,7 @@ export default function CompanyDetailsPage() {
     const payload = form.same_as_registered_office ? copyRegisteredToTrading(form) : form;
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/company-details/", {
+      const res = await fetch("/api/auth/company-details/", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

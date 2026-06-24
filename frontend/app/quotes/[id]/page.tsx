@@ -149,7 +149,7 @@ export default function QuoteDetailPage() {
       if (!quoteId || Number.isNaN(quoteId)) return;
 
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/quotes/${quoteId}/`);
+        const response = await fetch(`/api/quotes/${quoteId}/`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -270,7 +270,7 @@ export default function QuoteDetailPage() {
   async function lookupPrice(index: number, wasteType: string, binSize: string) {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/api/quotes/price-lookup/?waste_type=${encodeURIComponent(
+        `/api/quotes/price-lookup/?waste_type=${encodeURIComponent(
           wasteType
         )}&bin_size=${encodeURIComponent(binSize)}`
       );
@@ -474,7 +474,7 @@ export default function QuoteDetailPage() {
   }
 
   async function saveQuoteChanges(currentQuote: QuoteDetail) {
-    const response = await fetch(`http://127.0.0.1:8000/api/quotes/${currentQuote.id}/`, {
+    const response = await fetch(`/api/quotes/${currentQuote.id}/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -522,7 +522,7 @@ export default function QuoteDetailPage() {
 
     try {
       const savedQuote = await saveQuoteChanges(quote);
-      const response = await fetch(`http://127.0.0.1:8000/api/quotes/${savedQuote.id}/send/`, {
+      const response = await fetch(`/api/quotes/${savedQuote.id}/send/`, {
         method: "POST",
         headers: getAuthHeaders({
           "Content-Type": "application/json",
@@ -563,7 +563,7 @@ export default function QuoteDetailPage() {
     setMessage("");
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/quotes/${quote.id}/`, {
+      const response = await fetch(`/api/quotes/${quote.id}/`, {
         method: "DELETE",
       });
 
@@ -619,7 +619,7 @@ export default function QuoteDetailPage() {
     setMissingConvertFields([]);
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/quotes/${quote.id}/convert/`, {
+      const response = await fetch(`/api/quotes/${quote.id}/convert/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -677,7 +677,7 @@ export default function QuoteDetailPage() {
     if (!quote) return;
 
     const createdBy = encodeURIComponent(staffUsername || "Staff Portal");
-    window.open(`http://127.0.0.1:8000/api/quotes/${quote.id}/pdf/?created_by=${createdBy}`, "_blank");
+    window.open(`/api/quotes/${quote.id}/pdf/?created_by=${createdBy}`, "_blank");
   }
 
   return (

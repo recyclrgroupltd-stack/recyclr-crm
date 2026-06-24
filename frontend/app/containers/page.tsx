@@ -138,7 +138,7 @@ export default function ContainersPage() {
   const [error, setError] = useState("");
 
   async function loadOptions() {
-    const response = await fetch("http://127.0.0.1:8000/api/containers/options/", {
+    const response = await fetch("/api/containers/options/", {
       headers: authHeaders(),
     });
     const data = await response.json();
@@ -153,7 +153,7 @@ export default function ContainersPage() {
     const params = new URLSearchParams();
     if (search.trim()) params.set("search", search.trim());
     if (statusFilter) params.set("status", statusFilter);
-    const response = await fetch(`http://127.0.0.1:8000/api/containers/?${params.toString()}`, {
+    const response = await fetch(`/api/containers/?${params.toString()}`, {
       headers: authHeaders(),
     });
     const data = await response.json();
@@ -189,7 +189,7 @@ export default function ContainersPage() {
       setSaving(true);
       setMessage("");
       setError("");
-      const response = await fetch("http://127.0.0.1:8000/api/containers/batches/", {
+      const response = await fetch("/api/containers/batches/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -215,7 +215,7 @@ export default function ContainersPage() {
     setSelectedNotes(row.notes || "");
     setShowHistory(false);
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/containers/${row.id}/`, {
+      const response = await fetch(`/api/containers/${row.id}/`, {
         headers: authHeaders(),
       });
       const data = await response.json();
@@ -246,7 +246,7 @@ export default function ContainersPage() {
       setSaving(true);
       setMessage("");
       setError("");
-      const response = await fetch(`http://127.0.0.1:8000/api/containers/${selectedContainer.id}/`, {
+      const response = await fetch(`/api/containers/${selectedContainer.id}/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

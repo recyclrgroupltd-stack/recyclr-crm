@@ -165,7 +165,7 @@ export default function PricingPage() {
       setLoading(true);
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/api/pricing/", { headers: getAuthHeaders() });
+      const res = await fetch("/api/pricing/", { headers: getAuthHeaders() });
       const data = await res.json();
 
       if (!res.ok) {
@@ -203,7 +203,7 @@ export default function PricingPage() {
       setSaving(true);
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/api/pricing/create/", {
+      const res = await fetch("/api/pricing/create/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(formToPayload(newItem)),
@@ -236,7 +236,7 @@ export default function PricingPage() {
       setSaving(true);
       setError("");
 
-      const res = await fetch(`http://127.0.0.1:8000/api/pricing/${editState.id}/update/`, {
+      const res = await fetch(`/api/pricing/${editState.id}/update/`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(formToPayload(editState)),
@@ -261,7 +261,7 @@ export default function PricingPage() {
     try {
       setError("");
 
-      const res = await fetch(`http://127.0.0.1:8000/api/pricing/${id}/delete/`, {
+      const res = await fetch(`/api/pricing/${id}/delete/`, {
         method: "POST",
         headers: getAuthHeaders(),
       });

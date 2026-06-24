@@ -137,7 +137,7 @@ export default function ExpensesPage() {
         status,
         search,
       });
-      const response = await fetch(`http://127.0.0.1:8000/api/expenses/?${params.toString()}`, {
+      const response = await fetch(`/api/expenses/?${params.toString()}`, {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
@@ -231,7 +231,7 @@ export default function ExpensesPage() {
       payload.append("lines", JSON.stringify(expenseLines));
       if (receipt) payload.append("receipt", receipt);
 
-      const response = await fetch("http://127.0.0.1:8000/api/expenses/", {
+      const response = await fetch("/api/expenses/", {
         method: "POST",
         headers: getAuthHeaders(),
         body: payload,
@@ -268,7 +268,7 @@ export default function ExpensesPage() {
     setMessage("");
     setError("");
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/expenses/${expenseId}/approve/`, {
+      const response = await fetch(`/api/expenses/${expenseId}/approve/`, {
         method: "POST",
         headers: getAuthHeaders(),
       });
@@ -289,7 +289,7 @@ export default function ExpensesPage() {
     setMessage("");
     setError("");
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/expenses/${expenseId}/reject/`, {
+      const response = await fetch(`/api/expenses/${expenseId}/reject/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -315,7 +315,7 @@ export default function ExpensesPage() {
     setMessage("");
     setError("");
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/expenses/categories/", {
+      const response = await fetch("/api/expenses/categories/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -674,7 +674,7 @@ export default function ExpensesPage() {
                               Details
                             </button>
                             {expense.receipt_url ? (
-                              <a href={`http://127.0.0.1:8000${expense.receipt_url}`} target="_blank" className="rounded-md bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">
+                              <a href={`${expense.receipt_url}`} target="_blank" className="rounded-md bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">
                                 Receipt
                               </a>
                             ) : null}

@@ -74,7 +74,7 @@ export default function SiteDetailPage() {
         setMessage("");
 
         const response = await fetch(
-          `http://127.0.0.1:8000/api/customers/sites/${siteId}/`
+          `/api/customers/sites/${siteId}/`
         );
 
         const contentType = response.headers.get("content-type") || "";
@@ -107,7 +107,7 @@ export default function SiteDetailPage() {
         });
 
         const containersResponse = await fetch(
-          `http://127.0.0.1:8000/api/containers/?site_id=${siteId}&status=all`
+          `/api/containers/?site_id=${siteId}&status=all`
         );
         const containersData = await containersResponse.json();
         if (containersResponse.ok && containersData.success) {
@@ -138,7 +138,7 @@ export default function SiteDetailPage() {
       setMessage("");
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/customers/sites/${siteId}/`,
+        `/api/customers/sites/${siteId}/`,
         {
           method: "POST",
           headers: {

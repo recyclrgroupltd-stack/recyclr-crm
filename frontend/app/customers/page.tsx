@@ -70,7 +70,7 @@ export default function CustomersPage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch("http://127.0.0.1:8000/api/customers/");
+        const response = await fetch("/api/customers/");
         const result = await response.json();
 
         if (!response.ok) {

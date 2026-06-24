@@ -111,7 +111,7 @@ export default function StaffProfilePage() {
         setLoading(true);
         setError("");
 
-        const response = await fetch(`http://127.0.0.1:8000/api/auth/profile/${staffId}/`, {
+        const response = await fetch(`/api/auth/profile/${staffId}/`, {
           headers: getAuthHeaders(),
         });
         const data = await response.json();
@@ -140,10 +140,10 @@ export default function StaffProfilePage() {
     async function loadComposeData() {
       try {
         const [customersResponse, staffResponse] = await Promise.all([
-          fetch("http://127.0.0.1:8000/api/customers/", {
+          fetch("/api/customers/", {
             headers: getAuthHeaders(),
           }),
-          fetch("http://127.0.0.1:8000/api/auth/staff/", {
+          fetch("/api/auth/staff/", {
             headers: getAuthHeaders(),
           }),
         ]);
@@ -348,7 +348,7 @@ export default function StaffProfilePage() {
       setError("");
       setMessage("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/auth/profile/me/", {
+      const response = await fetch("/api/auth/profile/me/", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -384,7 +384,7 @@ export default function StaffProfilePage() {
       setEmailError("");
       setEmailMessage("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/communications/staff/send/", {
+      const response = await fetch("/api/communications/staff/send/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -442,7 +442,7 @@ export default function StaffProfilePage() {
     const command = getCustomerSearch();
     if (!command) return;
     const label = `${customer.customer_uid || `Customer ${customer.id}`} - ${customer.business_name}`;
-    const insertText = `${label}: http://localhost:3000/customers/${customer.id} `;
+    const insertText = `${label}: https://www.recyclrgroup.co.uk/customers/${customer.id} `;
     const nextBody = `${emailBody.slice(0, command.start)}${insertText}${emailBody.slice(command.end)}`;
     setEmailBody(nextBody);
     window.setTimeout(() => {

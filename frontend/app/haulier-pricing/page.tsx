@@ -138,7 +138,7 @@ export default function HaulierPricingPage() {
   });
 
   async function loadHauliers() {
-    const res = await fetch("http://127.0.0.1:8000/api/hauliers/", { headers: getAuthHeaders() });
+    const res = await fetch("/api/hauliers/", { headers: getAuthHeaders() });
     const data = await res.json();
     setHauliers(Array.isArray(data) ? data : []);
   }
@@ -150,7 +150,7 @@ export default function HaulierPricingPage() {
       params.set("haulier_id", selectedHaulier);
     }
 
-    const res = await fetch(`http://127.0.0.1:8000/api/hauliers/rates/?${params.toString()}`, {
+    const res = await fetch(`/api/hauliers/rates/?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
     const data = await res.json();
@@ -164,7 +164,7 @@ export default function HaulierPricingPage() {
       params.set("haulier_id", selectedHaulier);
     }
 
-    const res = await fetch(`http://127.0.0.1:8000/api/hauliers/portal/users/?${params.toString()}`, {
+    const res = await fetch(`/api/hauliers/portal/users/?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
     const data = await res.json();
@@ -207,7 +207,7 @@ export default function HaulierPricingPage() {
       setMessage("");
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/api/hauliers/", {
+      const res = await fetch("/api/hauliers/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(newHaulier),
@@ -241,7 +241,7 @@ export default function HaulierPricingPage() {
       setMessage("");
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/api/hauliers/rates/", {
+      const res = await fetch("/api/hauliers/rates/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -283,7 +283,7 @@ export default function HaulierPricingPage() {
       setMessage("");
       setError("");
 
-      const res = await fetch("http://127.0.0.1:8000/api/hauliers/portal/users/", {
+      const res = await fetch("/api/hauliers/portal/users/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
@@ -319,7 +319,7 @@ export default function HaulierPricingPage() {
       setMessage("");
       setError("");
 
-      const res = await fetch(`http://127.0.0.1:8000/api/hauliers/portal/users/${userId}/resend-setup/`, {
+      const res = await fetch(`/api/hauliers/portal/users/${userId}/resend-setup/`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
       });
@@ -370,7 +370,7 @@ export default function HaulierPricingPage() {
       setMessage("");
       setError("");
 
-      const res = await fetch(`http://127.0.0.1:8000/api/hauliers/rates/${rateId}/`, {
+      const res = await fetch(`/api/hauliers/rates/${rateId}/`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({

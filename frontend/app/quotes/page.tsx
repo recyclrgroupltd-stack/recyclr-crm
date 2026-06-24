@@ -71,7 +71,7 @@ export default function QuotesPage() {
       setLoading(true);
       setError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/quotes/", {
+      const response = await fetch("/api/quotes/", {
         headers: getAuthHeaders(),
       });
 
@@ -98,7 +98,7 @@ export default function QuotesPage() {
       setError("");
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/quotes/${quoteId}/pdf/?created_by=JayGallagher`,
+        `/api/quotes/${quoteId}/pdf/?created_by=JayGallagher`,
         {
           headers: getAuthHeaders(),
         }

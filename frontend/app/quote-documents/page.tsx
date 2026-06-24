@@ -55,7 +55,7 @@ export default function QuoteDocumentsPage() {
         ? `?search=${encodeURIComponent(searchTerm.trim())}`
         : "";
 
-      const response = await fetch(`http://127.0.0.1:8000/api/quotes/documents/search/${query}`);
+      const response = await fetch(`/api/quotes/documents/search/${query}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -156,7 +156,7 @@ export default function QuoteDocumentsPage() {
                         <td className="px-4 py-3">{formatBytes(document.file_size_bytes)}</td>
                         <td className="px-4 py-3">
                           <a
-                            href={`http://127.0.0.1:8000${document.download_url}`}
+                            href={`${document.download_url}`}
                             target="_blank"
                             rel="noreferrer"
                             className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-gray-200"

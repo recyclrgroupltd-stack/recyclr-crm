@@ -76,8 +76,8 @@ export default function ContainerMaintenancePage() {
 
   async function loadData() {
     const [containersResponse, eventsResponse] = await Promise.all([
-      fetch("http://127.0.0.1:8000/api/containers/?status=all", { headers: authHeaders() }),
-      fetch("http://127.0.0.1:8000/api/containers/maintenance/", { headers: authHeaders() }),
+      fetch("/api/containers/?status=all", { headers: authHeaders() }),
+      fetch("/api/containers/maintenance/", { headers: authHeaders() }),
     ]);
     const containersData = await containersResponse.json();
     const eventsData = await eventsResponse.json();
@@ -107,7 +107,7 @@ export default function ContainerMaintenancePage() {
       setSaving(true);
       setMessage("");
       setError("");
-      const response = await fetch("http://127.0.0.1:8000/api/containers/maintenance/", {
+      const response = await fetch("/api/containers/maintenance/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

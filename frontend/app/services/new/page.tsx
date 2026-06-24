@@ -110,7 +110,7 @@ export default function NewServicePage() {
   useEffect(() => {
     async function loadOptions() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/services/create/options/", {
+        const response = await fetch("/api/services/create/options/", {
           headers: getAuthHeaders(),
         });
 
@@ -214,7 +214,7 @@ export default function NewServicePage() {
     setError("");
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/services/create/", {
+      const response = await fetch("/api/services/create/", {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(form),

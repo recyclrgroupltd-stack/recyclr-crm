@@ -401,7 +401,7 @@ export default function PurchaseOrdersPage() {
   }
 
   async function loadSuppliers() {
-    const response = await fetch("http://127.0.0.1:8000/api/purchase-orders/suppliers/", {
+    const response = await fetch("/api/purchase-orders/suppliers/", {
       headers: getAuthHeaders(),
     });
     const data = await response.json();
@@ -415,7 +415,7 @@ export default function PurchaseOrdersPage() {
     if (supplierFilter !== "all") params.set("supplier_id", supplierFilter);
     if (search.trim()) params.set("search", search.trim());
 
-    const url = `http://127.0.0.1:8000/api/purchase-orders/${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `/api/purchase-orders/${params.toString() ? `?${params.toString()}` : ""}`;
 
     const response = await fetch(url, {
       headers: getAuthHeaders(),
@@ -586,7 +586,7 @@ export default function PurchaseOrdersPage() {
       setMessage("");
       setError("");
 
-      const response = await fetch("http://127.0.0.1:8000/api/purchase-orders/suppliers/", {
+      const response = await fetch("/api/purchase-orders/suppliers/", {
         method: "POST",
         headers: buildHeaders(),
         body: JSON.stringify(newSupplier),
@@ -638,8 +638,8 @@ export default function PurchaseOrdersPage() {
 
       const url =
         editingMode && selectedOrderId
-          ? `http://127.0.0.1:8000/api/purchase-orders/${selectedOrderId}/`
-          : "http://127.0.0.1:8000/api/purchase-orders/";
+          ? `/api/purchase-orders/${selectedOrderId}/`
+          : "/api/purchase-orders/";
 
       const response = await fetch(url, {
         method: "POST",
@@ -679,7 +679,7 @@ export default function PurchaseOrdersPage() {
         throw new Error("Purchase order not found.");
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/purchase-orders/${orderId}/`, {
+      const response = await fetch(`/api/purchase-orders/${orderId}/`, {
         method: "POST",
         headers: buildHeaders(),
         body: JSON.stringify({
@@ -766,7 +766,7 @@ export default function PurchaseOrdersPage() {
       formData.append("received_proof", receivedModal.receivedProof);
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/purchase-orders/${receivedModal.order.id}/`,
+        `/api/purchase-orders/${receivedModal.order.id}/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
@@ -798,7 +798,7 @@ export default function PurchaseOrdersPage() {
       setMessage("");
       setError("");
 
-      const response = await fetch(`http://127.0.0.1:8000/api/purchase-orders/${orderId}/`, {
+      const response = await fetch(`/api/purchase-orders/${orderId}/`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -1387,7 +1387,7 @@ export default function PurchaseOrdersPage() {
                             {order.received_proof_url ? (
                               <div className="mt-2 text-sm">
                                 <a
-                                  href={`http://127.0.0.1:8000${order.received_proof_url}`}
+                                  href={`${order.received_proof_url}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="font-semibold text-white underline underline-offset-2"

@@ -286,8 +286,8 @@ export default function ServicesPage() {
       setLoading(true);
       setError("");
       const [servicesResponse, setupResponse] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/services/", { headers: getAuthHeaders() }),
-        fetch("http://127.0.0.1:8000/api/services/setup-options/", { headers: getAuthHeaders() }),
+        fetch("/api/services/", { headers: getAuthHeaders() }),
+        fetch("/api/services/setup-options/", { headers: getAuthHeaders() }),
       ]);
       const servicesData = await parseJsonResponse(servicesResponse);
       const setupData = await parseJsonResponse(setupResponse);
@@ -421,7 +421,7 @@ export default function ServicesPage() {
       setSaving(true);
       setError("");
       setMessage("");
-      const response = await fetch(`http://127.0.0.1:8000/api/services/${selectedService.id}/`, {
+      const response = await fetch(`/api/services/${selectedService.id}/`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
