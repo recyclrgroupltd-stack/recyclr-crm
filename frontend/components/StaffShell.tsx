@@ -183,11 +183,13 @@ function NavSection({
   items,
   pathname,
   collapsed,
+  onNavigate,
 }: {
   title: string;
   items: NavItem[];
   pathname: string;
   collapsed: boolean;
+  onNavigate?: () => void;
 }) {
   function isItemActive(item: NavItem) {
     const hasNestedItem = items.some((other) => other.href !== item.href && other.href.startsWith(`${item.href}/`));
@@ -218,6 +220,7 @@ function NavSection({
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             title={collapsed ? item.label : undefined}
             className={`flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${
               active
@@ -363,6 +366,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
   const [memberSearch, setMemberSearch] = useState("");
   const [chatError, setChatError] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [targetChatMessageId, setTargetChatMessageId] = useState<number | null>(null);
   const [chatMenu, setChatMenu] = useState<{
     conversation: ChatConversation;
@@ -1191,9 +1195,19 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
   return (
     <div className="flex min-h-screen bg-[#12055a] text-white">
+      {mobileMenuOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-20 bg-black/55 md:hidden"
+        />
+      ) : null}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/10 bg-[#07032b] py-5 text-white transition-all duration-200 ${
-          sidebarCollapsed ? "w-[72px] px-3" : "w-[240px] px-4"
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/10 bg-[#07032b] py-5 text-white transition-all duration-200 md:translate-x-0 ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${
+          sidebarCollapsed ? "w-[240px] px-4 md:w-[72px] md:px-3" : "w-[240px] px-4"
         }`}
       >
         <Link href="/dashboard" className={`mb-6 block ${sidebarCollapsed ? "px-1" : ""}`}>
@@ -1211,6 +1225,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
               items={section.items}
               pathname={pathname}
               collapsed={sidebarCollapsed}
+              onNavigate={() => setMobileMenuOpen(false)}
             />
           ))}
         </nav>
@@ -1218,20 +1233,26 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
       <main
         className={`min-h-screen min-w-0 flex-1 bg-[radial-gradient(circle_at_top_left,#32108a_0,#14045f_42%,#0d0338_100%)] transition-all duration-200 ${
-          sidebarCollapsed ? "pl-[72px]" : "pl-[240px]"
+          sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[240px]"
         }`}
       >
-        <div className="sticky top-0 z-20 border-b border-white/10 bg-[#160663] px-5 py-3 shadow-lg shadow-violet-950/20">
-          <div className="flex items-center gap-4">
+        <div className="sticky top-0 z-20 border-b border-white/10 bg-[#160663] px-3 py-3 shadow-lg shadow-violet-950/20 sm:px-5">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button
               type="button"
-              onClick={() => setSidebarCollapsed((current) => !current)}
+              onClick={() => {
+                if (window.matchMedia("(max-width: 767px)").matches) {
+                  setMobileMenuOpen((current) => !current);
+                  return;
+                }
+                setSidebarCollapsed((current) => !current);
+              }}
               className="flex h-9 w-9 items-center justify-center rounded-md text-xl text-white hover:bg-white/10"
               title={sidebarCollapsed ? "Expand menu" : "Collapse menu"}
             >
               =
             </button>
-            <form onSubmit={handleGlobalSearch} className="relative max-w-[470px] flex-1">
+            <form onSubmit={handleGlobalSearch} className="relative hidden max-w-[470px] flex-1 sm:block">
               <div className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 text-white">
                 <span className="text-sm text-white/60">Search</span>
                 <input
@@ -1313,10 +1334,10 @@ export default function StaffShell({ title, children }: StaffShellProps) {
                 </div>
               ) : null}
             </form>
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
               <Link
                 href="/email"
-                className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white hover:bg-white/15"
+                className="relative hidden h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white hover:bg-white/15 sm:flex"
                 title="Open email"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -1342,7 +1363,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
               </Link>
               <Link
                 href="/calendar"
-                className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white hover:bg-white/15"
+                className="relative hidden h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-white hover:bg-white/15 sm:flex"
                 title="Open calendar"
               >
                 <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -1372,7 +1393,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
                   />
                 </svg>
               </Link>
-              <div className="relative" ref={chatRef}>
+              <div className="relative hidden sm:block" ref={chatRef}>
                 <button
                   type="button"
                   onClick={() => {
@@ -1965,7 +1986,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
             </div>
           </div>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-3 sm:p-5">{children}</div>
       </main>
     </div>
   );

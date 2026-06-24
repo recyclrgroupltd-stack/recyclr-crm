@@ -44,7 +44,12 @@ function authHeaders() {
 
 function formatDate(value: string) {
   if (!value) return "-";
-  const date = new Date(value);
+  let date: Date;
+  try {
+    date = new Date(value);
+  } catch {
+    return value;
+  }
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-GB");
 }
@@ -76,7 +81,8 @@ export default function ChangeLogPage() {
     params.set("limit", "150");
     if (search.trim()) params.set("search", search.trim());
 
-    const response = await fetch(apiPath(`/api/containers/change-log/?${params.toString()}`), {
+    const queryString = params.toString();
+    const response = await fetch(apiPath(`/api/containers/change-log/${queryString ? `?${queryString}` : ""}`), {
       headers: authHeaders(),
     });
     const data = await response.json();
