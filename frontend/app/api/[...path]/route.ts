@@ -33,10 +33,11 @@ type RouteContext = {
   params: Promise<{ path?: string[] }>;
 };
 
-function buildBackendUrl(path: string[], search: string) {
+function buildBackendUrl(path: string[], search: string, keepTrailingSlash: boolean) {
   const cleanBase = BACKEND_BASE.replace(/\/+$/, "");
   const cleanPath = path.map(encodeURIComponent).join("/");
-  return `${cleanBase}/api/${cleanPath}${search}`;
+  const trailingSlash = keepTrailingSlash && cleanPath ? "/" : "";
+  return `${cleanBase}/api/${cleanPath}${trailingSlash}${search}`;
 }
 
 function buildForwardHeaders(request: NextRequest) {
@@ -56,7 +57,7 @@ function buildForwardHeaders(request: NextRequest) {
 
 async function proxyRequest(request: NextRequest, context: RouteContext) {
   const { path = [] } = await context.params;
-  const backendUrl = buildBackendUrl(path, request.nextUrl.search);
+  const backendUrl = buildBackendUrl(path, request.nextUrl.search, request.nextUrl.pathname.endsWith("/"));
   const method = request.method.toUpperCase();
 
   const response = await fetch(backendUrl, {
