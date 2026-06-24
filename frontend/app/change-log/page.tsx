@@ -60,6 +60,20 @@ function sourceClass(source: string) {
   return "bg-slate-100 text-slate-700";
 }
 
+async function readChangeLogPayload(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    await response.text().catch(() => "");
+    return null;
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 export default function ChangeLogPage() {
   const [rows, setRows] = useState<ChangeLogRow[]>([]);
   const [sources, setSources] = useState<SourceChoice[]>([
@@ -72,6 +86,7 @@ export default function ChangeLogPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const filteredRows = useMemo(() => rows, [rows]);
 
@@ -80,13 +95,24 @@ export default function ChangeLogPage() {
     params.set("source", source);
     params.set("limit", "150");
     if (search.trim()) params.set("search", search.trim());
+    setNotice("");
 
     const queryString = params.toString();
     const response = await fetch(apiPath(`/api/containers/change-log/${queryString ? `?${queryString}` : ""}`), {
       headers: authHeaders(),
     });
-    const data = await response.json();
-    if (!response.ok || !data.success) throw new Error(data.message || "Could not load change log.");
+    const data = await readChangeLogPayload(response);
+    if (!response.ok || !data?.success) {
+      if (response.status === 404 || !data) {
+        setRows([]);
+        setSummary(defaultSummary);
+        setSources(sources);
+        setError("");
+        setNotice("Change log data is waiting for the backend deploy to catch up.");
+        return;
+      }
+      throw new Error(data.message || "Could not load change log.");
+    }
 
     setRows(Array.isArray(data.rows) ? data.rows : []);
     setSources(Array.isArray(data.sources) ? data.sources : sources);
@@ -98,6 +124,7 @@ export default function ChangeLogPage() {
       try {
         setLoading(true);
         setError("");
+        setNotice("");
         await loadChangeLog();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not load change log.");
@@ -122,6 +149,10 @@ export default function ChangeLogPage() {
 
         {error ? (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 font-bold text-red-700">{error}</div>
+        ) : null}
+
+        {notice ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 font-bold text-amber-800">{notice}</div>
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-3">
