@@ -212,6 +212,11 @@ class ContainerMovement(models.Model):
     reason = models.TextField(blank=True)
     created_by = models.CharField(max_length=255, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    completion_notes = models.TextField(blank=True)
+    qr_scan_value = models.CharField(max_length=255, blank=True)
+    customer_present = models.BooleanField(default=False)
+    signature_data = models.TextField(blank=True)
+    photo_data = models.JSONField(default=list, blank=True)
 
     billable_to_customer = models.BooleanField(default=False)
     charge_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

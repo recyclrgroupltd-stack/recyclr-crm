@@ -126,6 +126,11 @@ def _serialize_movement(movement):
         "reason": movement.reason,
         "created_by": movement.created_by,
         "completed_at": movement.completed_at.isoformat() if movement.completed_at else "",
+        "completion_notes": movement.completion_notes,
+        "qr_scan_value": movement.qr_scan_value,
+        "customer_present": movement.customer_present,
+        "signature_data": movement.signature_data,
+        "photo_data": movement.photo_data or [],
         "billable_to_customer": movement.billable_to_customer,
         "charge_amount": float(movement.charge_amount or 0),
         "charge_reason": movement.charge_reason,
@@ -437,6 +442,7 @@ def movements_list(request):
     if request.method == "GET":
         status = (request.GET.get("status") or "").strip()
         movement_type = (request.GET.get("type") or "").strip()
+        scheduled_date = (request.GET.get("scheduled_date") or "").strip()
         search = (request.GET.get("search") or "").strip().lower()
 
         movements = ContainerMovement.objects.select_related(
@@ -450,6 +456,11 @@ def movements_list(request):
             movements = movements.filter(status=status)
         if movement_type and movement_type != "all":
             movements = movements.filter(movement_type=movement_type)
+        if scheduled_date:
+            try:
+                movements = movements.filter(scheduled_date=_parse_date(scheduled_date, "scheduled date"))
+            except ValidationError:
+                return JsonResponse({"success": False, "message": "Invalid scheduled date."}, status=400)
 
         rows = [_serialize_movement(movement) for movement in movements[:500]]
         if search:
@@ -588,6 +599,13 @@ def movement_detail(request, movement_id):
     if action == "complete":
         movement.status = ContainerMovement.STATUS_COMPLETED
         movement.completed_at = timezone.now()
+        movement.completion_notes = str(payload.get("completion_notes") or movement.completion_notes or "").strip()
+        movement.qr_scan_value = str(payload.get("qr_scan_value") or movement.qr_scan_value or "").strip()
+        movement.customer_present = bool(payload.get("customer_present"))
+        movement.signature_data = str(payload.get("signature_data") or movement.signature_data or "").strip()
+        photo_data = payload.get("photo_data")
+        if isinstance(photo_data, list):
+            movement.photo_data = photo_data
         message = "Movement completed."
     elif action == "cancel":
         movement.status = ContainerMovement.STATUS_CANCELLED
@@ -600,7 +618,18 @@ def movement_detail(request, movement_id):
     else:
         return JsonResponse({"success": False, "message": "Choose complete, cancel, or reopen."}, status=400)
 
-    movement.save(update_fields=["status", "completed_at", "updated_at"])
+    movement.save(
+        update_fields=[
+            "status",
+            "completed_at",
+            "completion_notes",
+            "qr_scan_value",
+            "customer_present",
+            "signature_data",
+            "photo_data",
+            "updated_at",
+        ]
+    )
     return JsonResponse({"success": True, "message": message, "movement": _serialize_movement(movement)})
 
 

@@ -4,8 +4,11 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:signature/signature.dart';
 
 void main() {
   runApp(const RecyclrSalesApp());
@@ -178,7 +181,8 @@ class _StylusTextFieldState extends State<StylusTextField> {
   }
 
   void focusForStylus(PointerDeviceKind kind) {
-    if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
+    if (kind == PointerDeviceKind.stylus ||
+        kind == PointerDeviceKind.invertedStylus) {
       focusNode.requestFocus();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !focusNode.hasFocus) return;
@@ -259,7 +263,8 @@ class _StylusTextFormFieldState extends State<StylusTextFormField> {
   }
 
   void focusForStylus(PointerDeviceKind kind) {
-    if (kind == PointerDeviceKind.stylus || kind == PointerDeviceKind.invertedStylus) {
+    if (kind == PointerDeviceKind.stylus ||
+        kind == PointerDeviceKind.invertedStylus) {
       focusNode.requestFocus();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !focusNode.hasFocus) return;
@@ -386,7 +391,9 @@ class _LoginPageState extends State<LoginPage> {
       final role = (data['role'] ?? '').toString();
       final token = (data['token'] ?? '').toString();
       if (token.isEmpty) {
-        throw Exception('Login worked but the CRM did not return a session token.');
+        throw Exception(
+          'Login worked but the CRM did not return a session token.',
+        );
       }
       await prefs.setString('backend_url', backendUrl);
       await prefs.setString('staff_username', username);
@@ -572,14 +579,19 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                     ),
+                    HomeTile(
+                      icon: Icons.inventory_2,
+                      title: 'Bin Jobs',
+                      subtitle: 'Deliveries and collections today',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BinJobsPage(session: session),
+                        ),
+                      ),
+                    ),
                     const DisabledTile(
                       icon: Icons.calendar_month,
                       title: 'Calendar',
-                      subtitle: 'Coming later',
-                    ),
-                    const DisabledTile(
-                      icon: Icons.route,
-                      title: 'Jobs',
                       subtitle: 'Coming later',
                     ),
                     const DisabledTile(
@@ -593,6 +605,710 @@ class HomePage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class BinMovementJob {
+  BinMovementJob({
+    required this.id,
+    required this.type,
+    required this.typeLabel,
+    required this.status,
+    required this.scheduledDate,
+    required this.customerName,
+    required this.siteName,
+    required this.containerUid,
+    required this.wasteStreamLabel,
+    required this.binSizeLabel,
+    required this.quantity,
+    required this.reason,
+    required this.billable,
+    required this.chargeAmount,
+  });
+
+  final int id;
+  final String type;
+  final String typeLabel;
+  final String status;
+  final String scheduledDate;
+  final String customerName;
+  final String siteName;
+  final String containerUid;
+  final String wasteStreamLabel;
+  final String binSizeLabel;
+  final int quantity;
+  final String reason;
+  final bool billable;
+  final double chargeAmount;
+
+  bool get isDelivery => type == 'delivery' || type == 'replacement_delivery';
+  bool get isCollection => type == 'collection';
+
+  factory BinMovementJob.fromJson(Map<String, dynamic> json) {
+    return BinMovementJob(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      type: (json['movement_type'] ?? '').toString(),
+      typeLabel: (json['movement_type_label'] ?? 'Bin job').toString(),
+      status: (json['status'] ?? '').toString(),
+      scheduledDate: (json['scheduled_date'] ?? '').toString(),
+      customerName: (json['customer_name'] ?? '').toString(),
+      siteName: (json['site_name'] ?? '').toString(),
+      containerUid: (json['container_uid'] ?? '').toString(),
+      wasteStreamLabel: (json['waste_stream_label'] ?? '').toString(),
+      binSizeLabel: (json['bin_size_label'] ?? '').toString(),
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      reason: (json['reason'] ?? '').toString(),
+      billable: json['billable_to_customer'] == true,
+      chargeAmount: (json['charge_amount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class BinJobsPage extends StatefulWidget {
+  const BinJobsPage({super.key, required this.session});
+
+  final StaffSession session;
+
+  @override
+  State<BinJobsPage> createState() => _BinJobsPageState();
+}
+
+class _BinJobsPageState extends State<BinJobsPage> {
+  List<BinMovementJob> jobs = [];
+  bool loading = true;
+  String error = '';
+
+  @override
+  void initState() {
+    super.initState();
+    loadJobs();
+  }
+
+  String get todayIso => DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+  Future<void> loadJobs() async {
+    setState(() {
+      loading = true;
+      error = '';
+    });
+    try {
+      final response = await http.get(
+        widget.session.uri(
+          '/api/containers/movements/?status=scheduled&scheduled_date=$todayIso',
+        ),
+        headers: widget.session.jsonHeaders,
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400 || decoded['success'] != true) {
+        throw Exception(decoded['message'] ?? 'Could not load bin jobs.');
+      }
+      setState(() {
+        jobs = ((decoded['rows'] as List?) ?? [])
+            .whereType<Map<String, dynamic>>()
+            .map(BinMovementJob.fromJson)
+            .toList();
+      });
+    } catch (err) {
+      setState(() => error = err.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> openJob(BinMovementJob job) async {
+    final completed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => CompleteBinJobPage(session: widget.session, job: job),
+      ),
+    );
+    if (completed == true) loadJobs();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final deliveries = jobs.where((job) => job.isDelivery).length;
+    final collections = jobs.where((job) => job.isCollection).length;
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF16035C),
+        foregroundColor: Colors.white,
+        title: const Text('Bin Jobs'),
+        actions: [
+          IconButton(onPressed: loadJobs, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: loadJobs,
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6D00E8), Color(0xFF00A651)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      DateFormat('EEE d MMM').format(DateTime.now()),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${jobs.length} scheduled bin job${jobs.length == 1 ? '' : 's'}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        DashboardHeroChip(
+                          icon: Icons.call_made,
+                          label: '$deliveries deliveries',
+                        ),
+                        DashboardHeroChip(
+                          icon: Icons.call_received,
+                          label: '$collections collections',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (error.isNotEmpty) ...[
+                ErrorBox(message: error),
+                const SizedBox(height: 12),
+              ],
+              if (loading && jobs.isEmpty)
+                const CardShell(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(22),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                )
+              else if (jobs.isEmpty)
+                const CardShell(
+                  child: Text(
+                    'No bin deliveries or collections scheduled for today.',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                )
+              else
+                ...jobs.map(
+                  (job) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: BinJobCard(job: job, onTap: () => openJob(job)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class BinJobCard extends StatelessWidget {
+  const BinJobCard({super.key, required this.job, required this.onTap});
+
+  final BinMovementJob job;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = job.isDelivery
+        ? const Color(0xFF00A651)
+        : const Color(0xFF2563EB);
+    return CardShell(
+      padding: const EdgeInsets.all(0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: color.withValues(alpha: 0.14),
+                foregroundColor: color,
+                child: Icon(
+                  job.isDelivery ? Icons.local_shipping : Icons.inventory,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.customerName.isEmpty ? 'Customer' : job.customerName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        job.typeLabel,
+                        if (job.siteName.isNotEmpty) job.siteName,
+                        '${job.quantity} x ${job.binSizeLabel}',
+                        job.wasteStreamLabel,
+                      ].join(' - '),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (job.containerUid.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        job.containerUid,
+                        style: const TextStyle(
+                          color: Color(0xFF6D00E8),
+                          fontWeight: FontWeight.w900,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                    if (job.billable) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Billable: ${money(job.chargeAmount)}',
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF64748B)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CompleteBinJobPage extends StatefulWidget {
+  const CompleteBinJobPage({
+    super.key,
+    required this.session,
+    required this.job,
+  });
+
+  final StaffSession session;
+  final BinMovementJob job;
+
+  @override
+  State<CompleteBinJobPage> createState() => _CompleteBinJobPageState();
+}
+
+class _CompleteBinJobPageState extends State<CompleteBinJobPage> {
+  final notesController = TextEditingController();
+  final signatureController = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
+  final imagePicker = ImagePicker();
+  String qrScan = '';
+  bool customerPresent = false;
+  bool saving = false;
+  String error = '';
+  final Map<String, String> photos = {};
+
+  List<String> get requiredPhotoKeys => widget.job.isDelivery
+      ? ['Bin close-up', 'Bin in location', 'Site/access photo']
+      : ['Bin condition'];
+
+  @override
+  void dispose() {
+    notesController.dispose();
+    signatureController.dispose();
+    super.dispose();
+  }
+
+  Future<void> scanQr() async {
+    final value = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const QrScannerPage()));
+    if (value != null && value.isNotEmpty) {
+      setState(() => qrScan = value);
+    }
+  }
+
+  Future<void> takePhoto(String label) async {
+    try {
+      final image = await imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 45,
+        maxWidth: 1400,
+        maxHeight: 1400,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      setState(() {
+        photos[label] = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      });
+    } catch (err) {
+      setState(() => error = err.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  bool qrLooksRight() {
+    if (widget.job.containerUid.isEmpty || qrScan.isEmpty) return true;
+    return qrScan.toLowerCase().contains(widget.job.containerUid.toLowerCase());
+  }
+
+  Future<void> completeJob() async {
+    setState(() => error = '');
+    if (qrScan.isEmpty) {
+      setState(
+        () => error = 'Scan the bin QR code before completing this job.',
+      );
+      return;
+    }
+    if (!qrLooksRight()) {
+      setState(
+        () =>
+            error = 'The scanned QR does not match ${widget.job.containerUid}.',
+      );
+      return;
+    }
+    final missingPhotos = requiredPhotoKeys
+        .where((key) => !photos.containsKey(key))
+        .toList();
+    if (missingPhotos.isNotEmpty) {
+      setState(() => error = 'Take required photo: ${missingPhotos.first}.');
+      return;
+    }
+    Uint8List? signatureBytes;
+    if (widget.job.isDelivery && customerPresent) {
+      if (signatureController.isEmpty) {
+        setState(
+          () => error = 'Customer is present, so capture their signature.',
+        );
+        return;
+      }
+      signatureBytes = await signatureController.toPngBytes();
+    }
+
+    setState(() => saving = true);
+    try {
+      final response = await http.post(
+        widget.session.uri('/api/containers/movements/${widget.job.id}/'),
+        headers: widget.session.jsonHeaders,
+        body: jsonEncode({
+          'action': 'complete',
+          'qr_scan_value': qrScan,
+          'customer_present': customerPresent,
+          'signature_data': signatureBytes == null
+              ? ''
+              : 'data:image/png;base64,${base64Encode(signatureBytes)}',
+          'completion_notes': notesController.text.trim(),
+          'photo_data': photos.entries
+              .map(
+                (entry) => {
+                  'label': entry.key,
+                  'data_url': entry.value,
+                  'taken_at': DateTime.now().toIso8601String(),
+                },
+              )
+              .toList(),
+        }),
+      );
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      if (response.statusCode >= 400 || decoded['success'] != true) {
+        throw Exception(decoded['message'] ?? 'Could not complete bin job.');
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (err) {
+      setState(() => error = err.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final job = widget.job;
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF16035C),
+        foregroundColor: Colors.white,
+        title: Text(job.typeLabel),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            CardShell(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    job.customerName,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    [
+                      job.siteName,
+                      '${job.quantity} x ${job.binSizeLabel}',
+                      job.wasteStreamLabel,
+                    ].where((part) => part.isNotEmpty).join(' - '),
+                    style: const TextStyle(
+                      color: Color(0xFF475569),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (job.reason.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      job.reason,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (error.isNotEmpty) ...[
+              ErrorBox(message: error),
+              const SizedBox(height: 12),
+            ],
+            SectionCard(
+              title: '1. Scan bin QR',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    qrScan.isEmpty ? 'No QR scanned yet.' : qrScan,
+                    style: TextStyle(
+                      color: qrLooksRight()
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFDC2626),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: scanQr,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text(
+                      qrScan.isEmpty ? 'Scan QR Code' : 'Rescan QR Code',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SectionCard(
+              title: job.isDelivery
+                  ? '2. Delivery photos'
+                  : '2. Collection photo',
+              child: Column(
+                children: requiredPhotoKeys
+                    .map(
+                      (label) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: PhotoCaptureRow(
+                          label: label,
+                          captured: photos.containsKey(label),
+                          onTap: () => takePhoto(label),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+            SectionCard(
+              title: '3. Customer sign-off',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SwitchListTile(
+                    value: customerPresent,
+                    onChanged: (value) =>
+                        setState(() => customerPresent = value),
+                    title: const Text('Customer present'),
+                    subtitle: Text(
+                      widget.job.isDelivery
+                          ? 'If present, ask them to sign below.'
+                          : 'Useful to record even when a signature is not needed.',
+                    ),
+                  ),
+                  if (widget.job.isDelivery && customerPresent) ...[
+                    Container(
+                      height: 190,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Signature(
+                        controller: signatureController,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: signatureController.clear,
+                        icon: const Icon(Icons.clear),
+                        label: const Text('Clear signature'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SectionCard(
+              title: '4. Notes',
+              child: StylusTextFormField(
+                controller: notesController,
+                minLines: 3,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Completion notes',
+                  hintText:
+                      'Access issues, where bin was left, condition notes...',
+                ),
+              ),
+            ),
+            const SizedBox(height: 96),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            boxShadow: [BoxShadow(color: Color(0x22000000), blurRadius: 12)],
+          ),
+          child: FilledButton.icon(
+            onPressed: saving ? null : completeJob,
+            icon: const Icon(Icons.check_circle),
+            label: Text(saving ? 'Completing...' : 'Complete Job'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class PhotoCaptureRow extends StatelessWidget {
+  const PhotoCaptureRow({
+    super.key,
+    required this.label,
+    required this.captured,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool captured;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(captured ? Icons.check_circle : Icons.camera_alt),
+      label: Text(captured ? '$label captured' : 'Take $label'),
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      ),
+    );
+  }
+}
+
+class QrScannerPage extends StatefulWidget {
+  const QrScannerPage({super.key});
+
+  @override
+  State<QrScannerPage> createState() => _QrScannerPageState();
+}
+
+class _QrScannerPageState extends State<QrScannerPage> {
+  final controller = MobileScannerController();
+  bool handled = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF16035C),
+        foregroundColor: Colors.white,
+        title: const Text('Scan Bin QR'),
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: controller,
+            onDetect: (capture) {
+              if (handled) return;
+              final value = capture.barcodes
+                  .map((barcode) => barcode.rawValue)
+                  .whereType<String>()
+                  .where((item) => item.isNotEmpty)
+                  .firstOrNull;
+              if (value == null) return;
+              handled = true;
+              Navigator.of(context).pop(value);
+            },
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              color: Colors.black.withValues(alpha: 0.65),
+              child: const Text(
+                'Point the camera at the bin QR label.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
