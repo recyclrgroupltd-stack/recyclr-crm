@@ -1211,20 +1211,19 @@ class _LeadsPageState extends State<LeadsPage> {
     try {
       final response = await http.get(
         widget.session.uri('/api/leads/'),
-        headers: {'X-Staff-Username': widget.session.username},
+        headers: widget.session.jsonHeaders,
       );
       final data = jsonDecode(response.body);
       if (response.statusCode >= 400) {
-        throw Exception(
-          data is Map ? data['message'] : 'Could not load leads.',
-        );
+        final message = data is Map ? data['message'] : null;
+        throw Exception(message ?? 'Could not load leads.');
       }
       setState(
         () =>
             leads = (data as List).map((item) => Lead.fromJson(item)).toList(),
       );
     } catch (err) {
-      setState(() => error = 'Could not load leads from the CRM.');
+      setState(() => error = err.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => loading = false);
     }
