@@ -157,6 +157,15 @@ export default function QuoteDetailPage() {
         }
 
         setQuote(data);
+        const warning = window.sessionStorage.getItem(`quote:${quoteId}:warning`);
+        const successMessage = window.sessionStorage.getItem(`quote:${quoteId}:message`);
+        window.sessionStorage.removeItem(`quote:${quoteId}:warning`);
+        window.sessionStorage.removeItem(`quote:${quoteId}:message`);
+        if (warning) {
+          setError(warning);
+        } else if (successMessage) {
+          setMessage(successMessage);
+        }
       } catch {
         setError("Could not load quote.");
       } finally {

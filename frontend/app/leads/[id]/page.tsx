@@ -715,8 +715,14 @@ export default function LeadDetailPage() {
       const sendData = await readJsonResponse(sendResponse, "The quote was created, but the CRM could not email it automatically.");
 
       if (!sendResponse.ok || !sendData.success) {
-        throw new Error(
-          `Quote created but email failed: ${sendData.message || "Could not email quote."} Open /quotes/${quoteId} to send it manually.`
+        window.sessionStorage.setItem(
+          `quote:${quoteId}:warning`,
+          `Quote created but email failed: ${sendData.message || "Could not email quote."}`
+        );
+      } else {
+        window.sessionStorage.setItem(
+          `quote:${quoteId}:message`,
+          sendData.message || "Quote email sent."
         );
       }
 
