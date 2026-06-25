@@ -17,6 +17,7 @@ import {
   canViewSites,
   canViewStaff,
   canViewExpenses,
+  canViewAi,
   clearStaffSession,
   getAuthHeaders,
   getStoredUser,
@@ -126,6 +127,7 @@ const coreItems: NavItem[] = [
   { label: "CRM Map", href: "/core-map", icon: "M" },
   { label: "Service Map", href: "/service-map", icon: "S" },
   { label: "Change Log", href: "/change-log", icon: "A" },
+  { label: "AI Assistant", href: "/ai", icon: "AI" },
 ];
 
 const salesItems: NavItem[] = [
@@ -389,6 +391,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         if (item.href === "/core-map") return canViewDashboard(currentUser);
         if (item.href === "/service-map") return canViewServices(currentUser) || canViewSites(currentUser) || canViewCustomers(currentUser);
         if (item.href === "/change-log") return canViewReporting(currentUser);
+        if (item.href === "/ai") return canViewAi(currentUser);
         if (item.href === "/leads") return canViewLeads(currentUser);
         if (item.href === "/quotes") return canViewQuotes(currentUser);
         if (item.href === "/contract-signing") return canViewQuotes(currentUser);

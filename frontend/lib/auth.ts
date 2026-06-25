@@ -58,6 +58,8 @@ export const PERMISSION_REGISTRY: Record<string, { label: string; category: stri
   "email.use": { label: "Use CRM Email", category: "Core" },
   "calendar.view": { label: "View Calendars", category: "Core" },
   "calendar.edit": { label: "Edit Own Calendar", category: "Core" },
+  "ai.view": { label: "View AI Assistant", category: "Core" },
+  "ai.use": { label: "Use AI Assistant", category: "Core" },
   "leads.view": { label: "View Leads", category: "Sales" },
   "leads.edit": { label: "Edit Leads", category: "Sales" },
   "quotes.view": { label: "View Quotes", category: "Sales" },
@@ -216,6 +218,10 @@ export function canEditQuotes(user: StoredUser | null) {
 
 export function canViewDashboard(user: StoredUser | null) {
   return hasPermission(user, "dashboard.view");
+}
+
+export function canViewAi(user: StoredUser | null) {
+  return hasPermission(user, "ai.view");
 }
 
 export function canViewReporting(user: StoredUser | null) {

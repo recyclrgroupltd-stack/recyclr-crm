@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "containers.apps.ContainersConfig",
     "crm_email.apps.CrmEmailConfig",
     "personnel.apps.PersonnelConfig",
+    "ai_core.apps.AICoreConfig",
 ]
 
 MIDDLEWARE = [
@@ -214,3 +215,8 @@ CRM_EMAIL_IMAP_HOST = os.getenv("CRM_EMAIL_IMAP_HOST", "imap.zoho.eu")
 CRM_EMAIL_IMAP_PORT = int(os.getenv("CRM_EMAIL_IMAP_PORT", 993))
 CRM_EMAIL_SMTP_HOST = os.getenv("CRM_EMAIL_SMTP_HOST", "smtp.zoho.eu")
 CRM_EMAIL_SMTP_PORT = int(os.getenv("CRM_EMAIL_SMTP_PORT", 587))
+
+RECYCLR_AI_ENABLED = env_bool("RECYCLR_AI_ENABLED", "False")
+RECYCLR_AI_PROVIDER = os.getenv("RECYCLR_AI_PROVIDER", "openai").strip().lower() or "openai"
+RECYCLR_AI_MODEL = os.getenv("RECYCLR_AI_MODEL", "").strip()
+RECYCLR_AI_MONTHLY_SPEND_LIMIT_GBP = os.getenv("RECYCLR_AI_MONTHLY_SPEND_LIMIT_GBP", "0").strip()

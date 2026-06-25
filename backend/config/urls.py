@@ -29,6 +29,7 @@ urlpatterns = [
     path("api/containers/", include("containers.urls")),
     path("api/email/", include("crm_email.urls")),
     path("api/personnel/", include("personnel.urls")),
+    path("api/ai/", include("ai_core.urls")),
     path("api/", include("leads_api.urls")),
     path("api/documents/", include("documents.urls")),
 ]
