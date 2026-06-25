@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -33,6 +34,14 @@ from .models import (
 
 User = get_user_model()
 CUSTOMER_PORTAL_SALT = "recyclr.customer.portal.v1"
+
+
+def _safe_email_status(email_status):
+    status = str(email_status or "not sent").strip()
+    status = re.sub(r"<[^>]+>", "", status)
+    if status.lower().startswith("failed:"):
+        return "failed"
+    return status or "not sent"
 
 
 def _money(value):
@@ -720,6 +729,7 @@ def customer_account_manager_update(request, customer_id):
         email_status = _send_account_manager_changed_email(customer, new_manager, acting_user)
     except Exception as exc:
         email_status = f"failed: {exc}"
+    safe_email_status = _safe_email_status(email_status)
 
     create_customer_activity(
         customer=customer,
@@ -728,7 +738,7 @@ def customer_account_manager_update(request, customer_id):
         description=(
             f"Account manager changed from {_staff_display_name(old_manager)} "
             f"to {_staff_display_name(new_manager)} by {_staff_display_name(acting_user)}. "
-            f"Customer email status: {email_status}."
+            f"Customer email status: {safe_email_status}."
         ),
         created_by=_staff_display_name(acting_user),
     )
@@ -747,7 +757,7 @@ def customer_account_manager_update(request, customer_id):
         {
             "success": True,
             "message": "Account manager updated.",
-            "email_status": email_status,
+            "email_status": safe_email_status,
             "account_manager": _serialize_account_manager(new_manager),
         }
     )

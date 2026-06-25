@@ -697,10 +697,13 @@ export default function CustomerOverviewPage() {
         setData(refreshJson);
         setSelectedManagerId(refreshJson.customer?.account_manager?.id ? String(refreshJson.customer.account_manager.id) : "");
       }
+      const emailStatus = String(json.email_status || "not sent").toLowerCase();
       setManagerMessage(
-        json.email_status === "sent"
+        emailStatus === "sent"
           ? "Account manager updated and customer emailed."
-          : `Account manager updated. Email status: ${json.email_status || "not sent"}.`
+          : emailStatus === "failed"
+            ? "Account manager updated. Customer email could not be sent right now."
+            : "Account manager updated."
       );
     } catch (err) {
       setManagerError(err instanceof Error ? err.message : "Could not update account manager.");
