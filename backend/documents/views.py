@@ -239,6 +239,7 @@ def _notify_account_manager(pack, account_manager):
 
 
 def _serialize_document(document):
+    download_path = f"/api/documents/generated-documents/{document.id}/download/"
     return {
         "id": document.id,
         "document_type": document.document_type,
@@ -246,7 +247,7 @@ def _serialize_document(document):
         "title": document.title,
         "status": document.status,
         "file": document.file.url if document.file else "",
-        "download_url": _absolute_backend_url(document.file.url if document.file else ""),
+        "download_url": _absolute_backend_url(download_path),
         "filename": document.filename(),
         "created_at": document.created_at.isoformat() if document.created_at else "",
         "updated_at": document.updated_at.isoformat() if document.updated_at else "",
@@ -450,6 +451,54 @@ def get_customer_documents(request, customer_id):
             for document in documents
         ]
     )
+
+
+def _document_file_exists(document):
+    if not document.file:
+        return False
+    try:
+        return document.file.storage.exists(document.file.name)
+    except Exception:
+        return False
+
+
+def _get_or_regenerate_document(document):
+    if _document_file_exists(document):
+        return document
+    if not document.quote_id:
+        return document
+
+    regenerated = create_generated_documents_for_quote(
+        customer=document.customer,
+        site=document.site,
+        quote=document.quote,
+    )
+    replacement = next(
+        (
+            candidate
+            for candidate in regenerated
+            if candidate.document_type == document.document_type
+        ),
+        None,
+    )
+    if replacement:
+        for pack in SigningPack.objects.filter(documents=document):
+            pack.documents.remove(document)
+            pack.documents.add(replacement)
+            pack.save(update_fields=["updated_at"])
+    return replacement or document
+
+
+@api_view(["GET"])
+def generated_document_download(request, document_id):
+    document = get_object_or_404(
+        GeneratedDocument.objects.select_related("customer", "site", "quote"),
+        id=document_id,
+    )
+    document = _get_or_regenerate_document(document)
+    if not _document_file_exists(document):
+        return Response({"success": False, "message": "This PDF could not be found or regenerated."}, status=404)
+    return FileResponse(document.file.open("rb"), as_attachment=False, filename=document.filename())
 
 
 @api_view(["GET"])

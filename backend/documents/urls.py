@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    generated_document_download,
     get_customer_documents,
     public_signing_pack,
     public_signing_pack_submit,
@@ -13,6 +14,7 @@ from .views import (
 
 urlpatterns = [
     path("customer/<int:customer_id>/", get_customer_documents, name="get_customer_documents"),
+    path("generated-documents/<int:document_id>/download/", generated_document_download, name="generated_document_download"),
     path("signing-packs/", signing_pack_list, name="signing_pack_list"),
     path("signing-packs/create/", signing_pack_create, name="signing_pack_create"),
     path("signing-packs/<int:pack_id>/send/", signing_pack_send, name="signing_pack_send"),
