@@ -7,6 +7,8 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import Group
 from django.core import signing
+from django.core.management.color import no_style
+from django.db import connection, transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
@@ -368,6 +370,95 @@ def require_admin(request):
     if error_response:
         return None, error_response
     return user, None
+
+
+@api_view(["POST"])
+def reset_crm_data_view(request):
+    user, error_response = require_admin(request)
+    if error_response:
+        return error_response
+
+    if request.data.get("confirmation") != "RESET_CRM_DATA":
+        return Response(
+            {"success": False, "message": "Confirmation phrase is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    from communications.models import EmailMessage
+    from containers.models import Container, ContainerBatch, ContainerMaintenanceEvent
+    from customers.models import Customer, CustomerActivity, CustomerInvoice, CustomerInvoiceLine, CustomerNote, Site
+    from documents.models import GeneratedDocument, SignedPackDocument, SigningPack
+    from expenses.models import ExpenseClaim, ExpenseLine
+    from hauliers.models import Haulier, HaulierPortalUser, HaulierPortalUserSiteAccess, HaulierRate
+    from jobs.models import Job
+    from leads.models import Lead, LeadWasteRequirement
+    from operations.models import CollectionEvent
+    from personnel.models import PersonnelDocument
+    from purchase_orders.models import PurchaseOrder, PurchaseOrderLine, StaffNotification, Supplier
+    from quotes.models import Quote, QuoteDocument, QuoteLine
+    from services.models import Service
+    from staff_calendar.models import StaffCalendarEvent, StaffCalendarRequest
+    from staff_chat.models import StaffConversation, StaffConversationParticipant, StaffMessage
+
+    models_to_clear = [
+        PersonnelDocument,
+        StaffMessage,
+        StaffConversationParticipant,
+        StaffConversation,
+        StaffCalendarEvent,
+        StaffCalendarRequest,
+        StaffNotification,
+        ExpenseLine,
+        ExpenseClaim,
+        PurchaseOrderLine,
+        PurchaseOrder,
+        Supplier,
+        EmailMessage,
+        CollectionEvent,
+        Job,
+        ContainerMaintenanceEvent,
+        Container,
+        ContainerBatch,
+        SignedPackDocument,
+        SigningPack,
+        GeneratedDocument,
+        QuoteDocument,
+        QuoteLine,
+        Quote,
+        LeadWasteRequirement,
+        Lead,
+        Service,
+        CustomerInvoiceLine,
+        CustomerInvoice,
+        CustomerNote,
+        CustomerActivity,
+        Site,
+        Customer,
+        HaulierPortalUserSiteAccess,
+        HaulierRate,
+        HaulierPortalUser,
+        Haulier,
+    ]
+
+    deleted_counts = {}
+    with transaction.atomic():
+        for model in models_to_clear:
+            deleted, breakdown = model.objects.all().delete()
+            deleted_counts[model._meta.label] = breakdown.get(model._meta.label, deleted)
+
+        sequence_sql = connection.ops.sequence_reset_sql(no_style(), models_to_clear)
+        with connection.cursor() as cursor:
+            for statement in sequence_sql:
+                cursor.execute(statement)
+
+    logger.warning("CRM data reset by %s", user.username)
+    return Response(
+        {
+            "success": True,
+            "message": "CRM data reset. Staff accounts, profiles, permissions, company details, and pricebook were kept.",
+            "deleted_counts": deleted_counts,
+        }
+    )
 
 
 @api_view(["POST"])
