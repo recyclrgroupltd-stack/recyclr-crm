@@ -435,10 +435,6 @@ def _create_and_send_onboarding_signing_pack(*, quote, customer, site, documents
         pack.save(update_fields=["customer", "site", "signer_name", "signer_email", "message", "status", "updated_at"])
         raise ValueError("Onboarding documents were generated, but no enabled staff mailbox is available to email them.")
 
-    pack.status = "sent"
-    pack.sent_at = timezone.now()
-    pack.save(update_fields=["customer", "site", "signer_name", "signer_email", "message", "status", "sent_at", "updated_at"])
-
     signing_url = _public_signing_url(pack)
     subject = f"Please review and sign your {company_name} documents - {quote.quote_number}"
     body = (
@@ -455,13 +451,31 @@ def _create_and_send_onboarding_signing_pack(*, quote, customer, site, documents
         <p>Once the documents are signed, we can continue setting up your service.</p>
         <p>Thanks,<br />{escape(company_name)}</p>
     """
-    send_staff_mailbox_email(
-        user=sender_user,
-        subject=subject,
-        message=body,
-        html_message=html,
-        to_emails=[pack.signer_email],
-    )
+    try:
+        send_staff_mailbox_email(
+            user=sender_user,
+            subject=subject,
+            message=body,
+            html_message=html,
+            to_emails=[pack.signer_email],
+        )
+    except Exception:
+        pack.status = "ready"
+        pack.save(update_fields=["customer", "site", "signer_name", "signer_email", "message", "status", "updated_at"])
+        create_customer_activity(
+            customer=customer,
+            site=site,
+            activity_type="email",
+            title="Onboarding signing pack ready",
+            description="Onboarding documents were prepared, but the email could not be sent right now.",
+            created_by=created_by,
+            related_quote_number=quote.quote_number or "",
+        )
+        return pack
+
+    pack.status = "sent"
+    pack.sent_at = timezone.now()
+    pack.save(update_fields=["customer", "site", "signer_name", "signer_email", "message", "status", "sent_at", "updated_at"])
 
     for document in documents:
         document.status = "sent"
@@ -781,6 +795,11 @@ def _convert_quote_to_live_records(quote, created_by="System", payload=None, all
         quote.site = site
         quote.save()
 
+        signing_description = (
+            f"sent {len(created_documents)} onboarding document(s) for signing."
+            if signing_pack.status == "sent"
+            else f"prepared {len(created_documents)} onboarding document(s) for signing."
+        )
         create_customer_activity(
             customer=customer,
             site=site,
@@ -788,7 +807,7 @@ def _convert_quote_to_live_records(quote, created_by="System", payload=None, all
             title=f"Quote accepted and converted: {quote.quote_number}",
             description=(
                 f"Created {len(created_service_ids)} service(s) awaiting scheduling and "
-                f"sent {len(created_documents)} onboarding document(s) for signing."
+                f"{signing_description}"
             ),
             created_by=created_by,
             related_quote_number=quote.quote_number or "",
