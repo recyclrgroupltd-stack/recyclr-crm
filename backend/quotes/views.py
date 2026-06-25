@@ -158,6 +158,7 @@ def _serialize_quote_document(document):
 
 
 def _serialize_quote(quote, include_lines=False, include_documents=False):
+    contract_start_date = _date_or_none(quote.contract_start_date)
     data = {
         "id": quote.id,
         "quote_number": quote.quote_number,
@@ -176,7 +177,7 @@ def _serialize_quote(quote, include_lines=False, include_documents=False):
         "town": quote.town,
         "county": quote.county,
         "postcode": quote.postcode,
-        "contract_start_date": str(quote.contract_start_date) if quote.contract_start_date else "",
+        "contract_start_date": contract_start_date.isoformat() if contract_start_date else "",
         "status": quote.status,
         "valid_until": str(quote.valid_until) if quote.valid_until else "",
         "subtotal_per_month": float(quote.subtotal_per_month),
@@ -437,16 +438,20 @@ def _create_and_send_onboarding_signing_pack(*, quote, customer, site, documents
 
     signing_url = _public_signing_url(pack)
     subject = f"Please review and sign your {company_name} documents - {quote.quote_number}"
+    start_date = _date_or_none(quote.contract_start_date)
+    start_date_label = start_date.strftime("%d/%m/%Y") if start_date else "To be confirmed"
     body = (
         f"Hi {pack.signer_name or 'there'},\n\n"
         f"Thank you for accepting your {company_name} quote. Please review and sign your onboarding documents here:\n"
         f"{signing_url}\n\n"
+        f"Requested service start date: {start_date_label}\n\n"
         "Once the documents are signed, we can continue setting up your service.\n\n"
         f"Thanks,\n{company_name}"
     )
     html = f"""
         <p>Hi {escape(pack.signer_name or 'there')},</p>
         <p>Thank you for accepting your {escape(company_name)} quote. Please review and sign your onboarding documents using the secure link below.</p>
+        <p><strong>Requested service start date:</strong> {escape(start_date_label)}</p>
         <p><a href="{escape(signing_url)}">Review and sign onboarding documents</a></p>
         <p>Once the documents are signed, we can continue setting up your service.</p>
         <p>Thanks,<br />{escape(company_name)}</p>
@@ -830,6 +835,8 @@ def _build_quote_email_message(quote, sender_display_name="", accept_url=""):
     company_name = get_company_name()
     contact_name = _format_name(quote.contact_name)
     valid_until = str(quote.valid_until) if quote.valid_until else "Please contact us if you need a refreshed version."
+    start_date = _date_or_none(quote.contract_start_date)
+    start_date_text = start_date.strftime("%d/%m/%Y") if start_date else "To be confirmed with you"
     acceptance_line = ""
     if accept_url:
         acceptance_line = f"To accept this quote now, open this secure link:\n{accept_url}\n\n"
@@ -839,6 +846,7 @@ def _build_quote_email_message(quote, sender_display_name="", accept_url=""):
         f"Please find attached your {company_name} quote {quote.quote_number}.\n\n"
         f"Quote title: {quote.title or 'Waste Collection Quote'}\n"
         f"Estimated monthly total: £{quote.total_per_month}\n"
+        f"Requested service start date: {start_date_text}\n"
         f"Valid until: {valid_until}\n\n"
         f"{acceptance_line}"
         "If you would like to proceed, please reply to this email.\n\n"
@@ -853,6 +861,8 @@ def _build_quote_email_html(quote, sender_display_name="", accept_url=""):
     quote_number = escape(quote.quote_number or "")
     title = escape(quote.title or "Waste Collection Quote")
     valid_until = escape(str(quote.valid_until) if quote.valid_until else "Please contact us if you need a refreshed version.")
+    start_date = _date_or_none(quote.contract_start_date)
+    start_date_text = escape(start_date.strftime("%d/%m/%Y") if start_date else "To be confirmed with you")
     total = f"£{quote.total_per_month:.2f}"
     sender_name_html = escape(sender_display_name or company_name)
     company_name_html = escape(company_name)
@@ -917,6 +927,10 @@ def _build_quote_email_html(quote, sender_display_name="", accept_url=""):
                 <div style="background:#f8f5ff;border:1px solid #ebe4ff;border-radius:18px;padding:16px;">
                   <div style="font-size:12px;font-weight:700;color:#7a67c7;text-transform:uppercase;letter-spacing:.05em;">Valid until</div>
                   <div style="margin-top:8px;font-size:18px;font-weight:700;color:#241b4b;">{valid_until}</div>
+                </div>
+                <div style="background:#f8f5ff;border:1px solid #ebe4ff;border-radius:18px;padding:16px;">
+                  <div style="font-size:12px;font-weight:700;color:#7a67c7;text-transform:uppercase;letter-spacing:.05em;">Requested start date</div>
+                  <div style="margin-top:8px;font-size:18px;font-weight:700;color:#241b4b;">{start_date_text}</div>
                 </div>
                 <div style="background:#f8f5ff;border:1px solid #ebe4ff;border-radius:18px;padding:16px;">
                   <div style="font-size:12px;font-weight:700;color:#7a67c7;text-transform:uppercase;letter-spacing:.05em;">Next step</div>
@@ -1277,6 +1291,8 @@ def _render_quote_accept_confirm_page(quote, token):
     )
     total = escape(f"{quote.total_per_month:.2f}")
     valid_until = escape(str(quote.valid_until) if quote.valid_until else "")
+    start_date = _date_or_none(quote.contract_start_date)
+    start_date_text = escape(start_date.strftime("%d/%m/%Y") if start_date else "To be confirmed")
     token_html = escape(token)
 
     return HttpResponse(
@@ -1315,6 +1331,7 @@ def _render_quote_accept_confirm_page(quote, token):
                       <strong style="color:#241b4b;">Business:</strong> {company_name}<br>
                       <strong style="color:#241b4b;">Quote number:</strong> {quote_number}<br>
                       <strong style="color:#241b4b;">Monthly total:</strong> &pound;{total}<br>
+                      <strong style="color:#241b4b;">Requested service start date:</strong> {start_date_text}<br>
                       <strong style="color:#241b4b;">Valid until:</strong> {valid_until}<br>
                       <strong style="color:#241b4b;">Services:</strong> {quote.lines.count()}
                     </p>

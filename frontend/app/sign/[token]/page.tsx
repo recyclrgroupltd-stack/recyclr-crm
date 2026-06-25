@@ -8,6 +8,8 @@ type SigningPack = {
   quote_number: string;
   customer_name: string;
   site_name: string;
+  service_start_date: string;
+  service_start_date_label: string;
   status: string;
   signer_name: string;
   signer_email: string;
@@ -15,6 +17,7 @@ type SigningPack = {
   signed_email: string;
   signed_at: string;
   expires_at: string;
+  acceptance_service_start_date: boolean;
   company: {
     name: string;
     logo_data: string;
@@ -63,6 +66,7 @@ export default function PublicSigningPage() {
   const [acceptanceDocuments, setAcceptanceDocuments] = useState(false);
   const [acceptanceTerms, setAcceptanceTerms] = useState(false);
   const [acceptanceAuthority, setAcceptanceAuthority] = useState(false);
+  const [acceptanceServiceStartDate, setAcceptanceServiceStartDate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +82,7 @@ export default function PublicSigningPage() {
       setPack(data.pack);
       setSignedName(data.pack.signer_name || data.pack.signed_name || "");
       setSignedEmail(data.pack.signer_email || data.pack.signed_email || "");
+      setAcceptanceServiceStartDate(Boolean(data.pack.acceptance_service_start_date));
     } catch (err) {
       setError(err instanceof Error ? err.message : "This signing link could not be loaded.");
     } finally {
@@ -165,6 +170,7 @@ export default function PublicSigningPage() {
           acceptance_documents: acceptanceDocuments,
           acceptance_terms: acceptanceTerms,
           acceptance_authority: acceptanceAuthority,
+          acceptance_service_start_date: acceptanceServiceStartDate,
         }),
       });
       const data = await response.json();
@@ -294,6 +300,15 @@ export default function PublicSigningPage() {
                   />
                 </label>
 
+                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+                  <div className="text-xs font-black uppercase tracking-wide text-emerald-700">
+                    Requested service start date
+                  </div>
+                  <div className="mt-1 text-lg font-black text-emerald-950">
+                    {pack?.service_start_date_label || "To be confirmed"}
+                  </div>
+                </div>
+
                 <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50 p-4">
                   <label className="flex gap-3 text-sm font-semibold text-slate-700">
                     <input type="checkbox" checked={acceptanceDocuments} onChange={(event) => setAcceptanceDocuments(event.target.checked)} />
@@ -306,6 +321,14 @@ export default function PublicSigningPage() {
                   <label className="flex gap-3 text-sm font-semibold text-slate-700">
                     <input type="checkbox" checked={acceptanceAuthority} onChange={(event) => setAcceptanceAuthority(event.target.checked)} />
                     I confirm I am authorised to sign on behalf of this customer.
+                  </label>
+                  <label className="flex gap-3 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={acceptanceServiceStartDate}
+                      onChange={(event) => setAcceptanceServiceStartDate(event.target.checked)}
+                    />
+                    I confirm the requested service start date shown above is correct.
                   </label>
                 </div>
 
@@ -331,7 +354,13 @@ export default function PublicSigningPage() {
 
                 <button
                   onClick={submitSignature}
-                  disabled={submitting}
+                  disabled={
+                    submitting ||
+                    !acceptanceDocuments ||
+                    !acceptanceTerms ||
+                    !acceptanceAuthority ||
+                    !acceptanceServiceStartDate
+                  }
                   className="w-full rounded-lg bg-emerald-500 px-5 py-3 text-sm font-black text-white disabled:opacity-60"
                 >
                   {submitting ? "Submitting..." : "Sign Documents"}

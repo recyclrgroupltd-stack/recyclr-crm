@@ -41,6 +41,25 @@ def _public_signing_url(pack):
     return f"{settings.FRONTEND_BASE_URL}/sign/{pack.token}"
 
 
+def _quote_start_date(quote):
+    start_date = getattr(quote, "contract_start_date", None)
+    if not start_date:
+        return None
+    if hasattr(start_date, "date") and callable(start_date.date):
+        return start_date.date()
+    return start_date
+
+
+def _quote_start_date_iso(quote):
+    start_date = _quote_start_date(quote)
+    return start_date.isoformat() if start_date else ""
+
+
+def _quote_start_date_label(quote):
+    start_date = _quote_start_date(quote)
+    return start_date.strftime("%d/%m/%Y") if start_date else "To be confirmed"
+
+
 def _request_ip(request):
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if forwarded:
@@ -276,6 +295,8 @@ def _serialize_pack(pack, public=False):
         "quote_id": quote.id,
         "quote_number": quote.quote_number,
         "quote_title": quote.title,
+        "service_start_date": _quote_start_date_iso(quote),
+        "service_start_date_label": _quote_start_date_label(quote),
         "customer_id": pack.customer_id,
         "customer_name": pack.customer.business_name,
         "site_id": pack.site_id,
@@ -291,6 +312,7 @@ def _serialize_pack(pack, public=False):
         "viewed_at": pack.viewed_at.isoformat() if pack.viewed_at else "",
         "signed_at": pack.signed_at.isoformat() if pack.signed_at else "",
         "expires_at": pack.expires_at.isoformat() if pack.expires_at else "",
+        "acceptance_service_start_date": pack.acceptance_service_start_date,
         "created_at": pack.created_at.isoformat() if pack.created_at else "",
         "updated_at": pack.updated_at.isoformat() if pack.updated_at else "",
         "document_count": pack.documents.count(),
@@ -567,15 +589,18 @@ def signing_pack_send(request, pack_id):
     signing_url = _public_signing_url(pack)
     company_name = get_company_name()
     subject = f"Please review and sign your {company_name} documents - {pack.quote.quote_number}"
+    start_date_label = _quote_start_date_label(pack.quote)
     body = (
         f"Hi {signer_name or 'there'},\n\n"
         f"Please review and sign your {company_name} service documents using this secure link:\n"
         f"{signing_url}\n\n"
+        f"Requested service start date: {start_date_label}\n\n"
         f"Thanks,\n{company_name}"
     )
     html = f"""
         <p>Hi {signer_name or 'there'},</p>
         <p>Please review and sign your {escape(company_name)} service documents using the secure link below.</p>
+        <p><strong>Requested service start date:</strong> {escape(start_date_label)}</p>
         <p><a href="{signing_url}">Review and sign documents</a></p>
         <p>{message}</p>
         <p>Thanks,<br />{escape(company_name)}</p>
@@ -654,10 +679,11 @@ def public_signing_pack_submit(request, token):
     acceptance_terms = bool(request.data.get("acceptance_terms"))
     acceptance_authority = bool(request.data.get("acceptance_authority"))
     acceptance_documents = bool(request.data.get("acceptance_documents"))
+    acceptance_service_start_date = bool(request.data.get("acceptance_service_start_date"))
 
     if not signed_name or not signed_email or not signature_data:
         return Response({"success": False, "message": "Please enter your name, email, and signature."}, status=400)
-    if not (acceptance_terms and acceptance_authority and acceptance_documents):
+    if not (acceptance_terms and acceptance_authority and acceptance_documents and acceptance_service_start_date):
         return Response({"success": False, "message": "Please confirm all signing declarations before submitting."}, status=400)
 
     _ensure_pack_documents(pack)
@@ -666,6 +692,7 @@ def public_signing_pack_submit(request, token):
     pack.acceptance_terms = acceptance_terms
     pack.acceptance_authority = acceptance_authority
     pack.acceptance_documents = acceptance_documents
+    pack.acceptance_service_start_date = acceptance_service_start_date
     pack.signed_at = timezone.now()
     pack.signed_ip_address = _request_ip(request)
     pack.signed_user_agent = request.META.get("HTTP_USER_AGENT", "")
@@ -680,6 +707,8 @@ def public_signing_pack_submit(request, token):
         "acceptance_terms": acceptance_terms,
         "acceptance_authority": acceptance_authority,
         "acceptance_documents": acceptance_documents,
+        "acceptance_service_start_date": acceptance_service_start_date,
+        "service_start_date": _quote_start_date_iso(pack.quote),
     }
     try:
         _save_signature_image(pack, signature_data)

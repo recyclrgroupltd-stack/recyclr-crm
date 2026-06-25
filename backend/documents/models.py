@@ -100,6 +100,7 @@ class SigningPack(models.Model):
     acceptance_terms = models.BooleanField(default=False)
     acceptance_authority = models.BooleanField(default=False)
     acceptance_documents = models.BooleanField(default=False)
+    acceptance_service_start_date = models.BooleanField(default=False)
 
     sent_at = models.DateTimeField(null=True, blank=True)
     viewed_at = models.DateTimeField(null=True, blank=True)

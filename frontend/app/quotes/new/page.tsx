@@ -26,8 +26,14 @@ export default function NewQuotePage() {
     date.setDate(date.getDate() + 14);
     return formatDateForInput(date);
   })();
+  const defaultServiceStartDate = (() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
+    return formatDateForInput(date);
+  })();
 
   const [validUntil, setValidUntil] = useState(defaultValidUntil);
+  const [serviceStartDate, setServiceStartDate] = useState(defaultServiceStartDate);
 
   useEffect(() => {
     document.title = "Create Quote - Recyclr";
@@ -47,6 +53,16 @@ export default function NewQuotePage() {
 
     if (validUntil < today) {
       setError("Valid until date cannot be in the past.");
+      return;
+    }
+
+    if (!serviceStartDate) {
+      setError("Please set the requested service start date before saving this quote.");
+      return;
+    }
+
+    if (serviceStartDate < today) {
+      setError("Requested service start date cannot be in the past.");
       return;
     }
 
@@ -71,7 +87,7 @@ export default function NewQuotePage() {
           town: "",
           county: "",
           postcode: "",
-          contract_start_date: "",
+          contract_start_date: serviceStartDate,
           notes: "",
           internal_notes: "",
           lines: [],
@@ -116,7 +132,7 @@ export default function NewQuotePage() {
           open={showModal}
           onClose={() => router.push("/quotes")}
           title="Create Quote"
-          description="Set how long this quote should remain valid before it expires."
+          description="Set the requested service start date and how long this quote should remain valid."
           maxWidthClassName="max-w-2xl"
           zIndexClassName="z-[300]"
           topPaddingClassName="pt-28"
@@ -185,8 +201,21 @@ export default function NewQuotePage() {
               />
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-600">
+                Requested Service Start Date
+              </label>
+              <input
+                type="date"
+                min={today}
+                value={serviceStartDate}
+                onChange={(e) => setServiceStartDate(e.target.value)}
+                className="w-full rounded-xl border border-white/20 bg-[#5a3aa8] px-4 py-3 text-white outline-none"
+              />
+            </div>
+
             <div className="rounded-xl border border-white/10 bg-[#5a3aa8] px-4 py-3 text-sm font-medium text-slate-500">
-              This date will be saved onto the quote and the customer accept link will expire after it.
+              The start date will be shown on the quote email and must be confirmed before signing.
             </div>
           </div>
         </AppModal>

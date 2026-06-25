@@ -323,11 +323,17 @@ export default function LeadDetailPage() {
 
   const [showQuoteValidityModal, setShowQuoteValidityModal] = useState(false);
   const [quoteValidUntil, setQuoteValidUntil] = useState("");
+  const [quoteServiceStartDate, setQuoteServiceStartDate] = useState("");
 
   const today = useMemo(() => formatDateForInput(new Date()), []);
   const defaultValidUntil = useMemo(() => {
     const date = new Date();
     date.setDate(date.getDate() + 14);
+    return formatDateForInput(date);
+  }, []);
+  const defaultServiceStartDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 7);
     return formatDateForInput(date);
   }, []);
 
@@ -340,6 +346,12 @@ export default function LeadDetailPage() {
       setQuoteValidUntil(defaultValidUntil);
     }
   }, [defaultValidUntil, quoteValidUntil]);
+
+  useEffect(() => {
+    if (!quoteServiceStartDate) {
+      setQuoteServiceStartDate(defaultServiceStartDate);
+    }
+  }, [defaultServiceStartDate, quoteServiceStartDate]);
 
   const liveMonthlyValue = useMemo(() => {
     if (!priceItems.length) return monthlyValue;
@@ -628,6 +640,7 @@ export default function LeadDetailPage() {
     setMessage("");
     setError("");
     setQuoteValidUntil((current) => current || defaultValidUntil);
+    setQuoteServiceStartDate((current) => current || defaultServiceStartDate);
     setShowQuoteValidityModal(true);
   }
 
@@ -652,6 +665,16 @@ export default function LeadDetailPage() {
 
     if (quoteValidUntil < today) {
       setError("Valid until date cannot be in the past.");
+      return;
+    }
+
+    if (!quoteServiceStartDate) {
+      setError("Please choose the requested service start date.");
+      return;
+    }
+
+    if (quoteServiceStartDate < today) {
+      setError("Requested service start date cannot be in the past.");
       return;
     }
 
@@ -680,6 +703,7 @@ export default function LeadDetailPage() {
           email: form.email || "",
           status: "draft",
           valid_until: quoteValidUntil,
+          contract_start_date: quoteServiceStartDate,
           notes: form.notes || "",
           internal_notes: "",
           lines,
@@ -1052,7 +1076,7 @@ export default function LeadDetailPage() {
                 <div className="mb-5">
                   <h3 className="text-2xl font-semibold text-white">Create Quote</h3>
                   <p className="mt-2 text-sm text-white/75">
-                    Choose how long this quote should stay valid for before it expires.
+                    Choose the requested service start date and how long the quote should stay valid.
                   </p>
                 </div>
 
@@ -1093,6 +1117,22 @@ export default function LeadDetailPage() {
                     onChange={(e) => setQuoteValidUntil(e.target.value)}
                     className="w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-slate-950 outline-none"
                   />
+                </div>
+
+                <div className="mt-5">
+                  <label className="mb-2 block text-sm font-semibold text-slate-600">
+                    Requested Service Start Date
+                  </label>
+                  <input
+                    type="date"
+                    min={today}
+                    value={quoteServiceStartDate}
+                    onChange={(e) => setQuoteServiceStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-semibold text-slate-950 outline-none"
+                  />
+                  <p className="mt-2 text-xs font-medium text-white/70">
+                    The customer will confirm this date before signing their onboarding documents.
+                  </p>
                 </div>
 
                 <div className="mt-6 flex flex-wrap justify-end gap-3">
