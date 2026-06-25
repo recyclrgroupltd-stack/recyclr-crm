@@ -187,6 +187,14 @@ class _StylusTextFieldState extends State<StylusTextField> {
     }
   }
 
+  void showKeyboard() {
+    focusNode.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -206,6 +214,7 @@ class _StylusTextFieldState extends State<StylusTextField> {
           obscureText: widget.obscureText,
           textInputAction: widget.textInputAction,
           stylusHandwritingEnabled: true,
+          onTap: showKeyboard,
           onChanged: widget.onChanged,
           onSubmitted: widget.onSubmitted,
         ),
@@ -259,6 +268,14 @@ class _StylusTextFormFieldState extends State<StylusTextFormField> {
     }
   }
 
+  void showKeyboard() {
+    focusNode.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !focusNode.hasFocus) return;
+      SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
@@ -279,7 +296,10 @@ class _StylusTextFormFieldState extends State<StylusTextFormField> {
           minLines: widget.minLines,
           maxLines: widget.maxLines,
           readOnly: widget.readOnly,
-          onTap: widget.onTap,
+          onTap: () {
+            showKeyboard();
+            widget.onTap?.call();
+          },
           stylusHandwritingEnabled: true,
         ),
       ),
