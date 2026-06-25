@@ -344,7 +344,7 @@ export default function ContainersPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
           {[
             ["In Stock", summary.inactive],
             ["Assigned", summary.assigned],
@@ -359,14 +359,14 @@ export default function ContainersPage() {
           ))}
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[380px_1fr]">
+        <div className="grid gap-5 2xl:grid-cols-[380px_1fr]">
           <div className="rounded-lg border border-violet-100 bg-white p-5 text-slate-950 shadow-sm">
             <h2 className="text-lg font-black">Add Container Delivery</h2>
             <p className="mt-1 text-sm text-slate-500">
               Add delivered bins into stock. Services will auto-assign matching stock containers.
             </p>
             <div className="mt-5 grid gap-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-xs font-black uppercase tracking-wide text-slate-400">Bin Size</label>
                   <select value={batch.bin_size} onChange={(e) => setBatch((current) => ({ ...current, bin_size: e.target.value }))} className="w-full rounded-lg border border-violet-100 bg-violet-50 px-3 py-3 text-sm font-bold outline-none">
@@ -403,14 +403,14 @@ export default function ContainersPage() {
           </div>
 
           <div className="rounded-lg border border-violet-100 bg-white p-5 text-slate-950 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
               <div>
                 <h2 className="text-lg font-black">Containers</h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Click a container to update status, print its QR label, or review location.
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2">
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search ID, site, customer..." className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-3 text-sm font-bold outline-none" />
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-3 text-sm font-bold outline-none">
                   <option value="all">All statuses</option>
@@ -422,48 +422,87 @@ export default function ContainersPage() {
             {loading ? (
               <div className="mt-5 rounded-lg border border-dashed border-slate-300 p-6 text-slate-500">Loading containers...</div>
             ) : (
-              <div className="mt-5 overflow-x-auto rounded-lg border border-slate-100">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-slate-100 text-xs font-black uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Container</th>
-                      <th className="px-4 py-3">Stream</th>
-                      <th className="px-4 py-3">Size</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Location</th>
-                      <th className="px-4 py-3">QR</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.length === 0 ? (
+              <>
+                <div className="mt-5 space-y-3 2xl:hidden">
+                  {rows.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 p-6 text-slate-500">
+                      No containers match this view.
+                    </div>
+                  ) : (
+                    rows.map((row) => {
+                      const stream = getWasteStreamStyle(row.waste_stream);
+                      return (
+                        <button
+                          key={row.id}
+                          type="button"
+                          onClick={() => openContainer(row)}
+                          className="w-full rounded-lg border border-slate-100 bg-white p-4 text-left shadow-sm transition hover:border-violet-200 hover:bg-violet-50/70"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-mono text-sm font-black text-violet-700">{row.container_uid}</div>
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className={`rounded px-2 py-1 text-xs font-black ${stream.chipClass}`}>{row.waste_stream_label}</span>
+                                <span className="rounded bg-slate-100 px-2 py-1 text-xs font-black text-slate-700">{row.bin_size_label}</span>
+                                <StatusPill status={row.status} label={row.status_label} />
+                              </div>
+                            </div>
+                            <img src={row.qr_url} alt={`${row.container_uid} QR`} className="h-14 w-14 shrink-0 rounded border border-slate-200 bg-white p-1" />
+                          </div>
+                          <div className="mt-4 rounded-lg bg-slate-50 p-3">
+                            <div className="text-xs font-black uppercase tracking-wide text-slate-400">Location</div>
+                            <div className="mt-1 font-black text-slate-950">{containerLocationLabel(row)}</div>
+                            <div className="text-xs font-semibold text-slate-500">{containerLocationDetail(row)}</div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="mt-5 hidden overflow-x-auto rounded-lg border border-slate-100 2xl:block">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-slate-100 text-xs font-black uppercase tracking-wide text-slate-500">
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-slate-500">No containers match this view.</td>
+                        <th className="px-4 py-3">Container</th>
+                        <th className="px-4 py-3">Stream</th>
+                        <th className="px-4 py-3">Size</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Location</th>
+                        <th className="px-4 py-3">QR</th>
                       </tr>
-                    ) : (
-                      rows.map((row) => {
-                        const stream = getWasteStreamStyle(row.waste_stream);
-                        return (
-                          <tr key={row.id} onClick={() => openContainer(row)} className="cursor-pointer border-t border-slate-100 align-top hover:bg-violet-50/60">
-                            <td className="px-4 py-3 font-mono text-xs font-black text-violet-700">{row.container_uid}</td>
-                            <td className="px-4 py-3">
-                              <span className={`rounded px-2 py-1 text-xs font-black ${stream.chipClass}`}>{row.waste_stream_label}</span>
-                            </td>
-                            <td className="px-4 py-3 font-bold">{row.bin_size_label}</td>
-                            <td className="px-4 py-3"><StatusPill status={row.status} label={row.status_label} /></td>
-                            <td className="px-4 py-3">
-                              <div className="font-bold">{containerLocationLabel(row)}</div>
-                              <div className="text-xs text-slate-500">{containerLocationDetail(row)}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <img src={row.qr_url} alt={`${row.container_uid} QR`} className="h-14 w-14 rounded border border-slate-200 bg-white p-1" />
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-6 text-slate-500">No containers match this view.</td>
+                        </tr>
+                      ) : (
+                        rows.map((row) => {
+                          const stream = getWasteStreamStyle(row.waste_stream);
+                          return (
+                            <tr key={row.id} onClick={() => openContainer(row)} className="cursor-pointer border-t border-slate-100 align-top hover:bg-violet-50/60">
+                              <td className="px-4 py-3 font-mono text-xs font-black text-violet-700">{row.container_uid}</td>
+                              <td className="px-4 py-3">
+                                <span className={`rounded px-2 py-1 text-xs font-black ${stream.chipClass}`}>{row.waste_stream_label}</span>
+                              </td>
+                              <td className="px-4 py-3 font-bold">{row.bin_size_label}</td>
+                              <td className="px-4 py-3"><StatusPill status={row.status} label={row.status_label} /></td>
+                              <td className="px-4 py-3">
+                                <div className="font-bold">{containerLocationLabel(row)}</div>
+                                <div className="text-xs text-slate-500">{containerLocationDetail(row)}</div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <img src={row.qr_url} alt={`${row.container_uid} QR`} className="h-14 w-14 rounded border border-slate-200 bg-white p-1" />
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>

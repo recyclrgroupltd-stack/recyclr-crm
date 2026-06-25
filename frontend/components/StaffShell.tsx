@@ -1202,14 +1202,14 @@ export default function StaffShell({ title, children }: StaffShellProps) {
           type="button"
           aria-label="Close menu"
           onClick={() => setMobileMenuOpen(false)}
-          className="fixed inset-0 z-20 bg-black/55 md:hidden"
+          className="fixed inset-0 z-20 bg-black/55 2xl:hidden"
         />
       ) : null}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/10 bg-[#07032b] py-5 text-white transition-all duration-200 md:translate-x-0 ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-white/10 bg-[#07032b] py-5 text-white transition-all duration-200 2xl:translate-x-0 ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full 2xl:translate-x-0"
         } ${
-          sidebarCollapsed ? "w-[240px] px-4 md:w-[72px] md:px-3" : "w-[240px] px-4"
+          sidebarCollapsed ? "w-[240px] px-4 2xl:w-[72px] 2xl:px-3" : "w-[240px] px-4"
         }`}
       >
         <Link href="/dashboard" className={`mb-6 block ${sidebarCollapsed ? "px-1" : ""}`}>
@@ -1235,7 +1235,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
 
       <main
         className={`min-h-screen min-w-0 flex-1 bg-[radial-gradient(circle_at_top_left,#32108a_0,#14045f_42%,#0d0338_100%)] transition-all duration-200 ${
-          sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[240px]"
+          sidebarCollapsed ? "2xl:pl-[72px]" : "2xl:pl-[240px]"
         }`}
       >
         <div className="sticky top-0 z-20 border-b border-white/10 bg-[#160663] px-3 py-3 shadow-lg shadow-violet-950/20 sm:px-5">
@@ -1243,7 +1243,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
             <button
               type="button"
               onClick={() => {
-                if (window.matchMedia("(max-width: 767px)").matches) {
+                if (window.matchMedia("(max-width: 1535px)").matches) {
                   setMobileMenuOpen((current) => !current);
                   return;
                 }
