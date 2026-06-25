@@ -692,8 +692,36 @@ export default function LeadDetailPage() {
         throw new Error(data.message || "Failed to create quote.");
       }
 
+      const quoteId = data.quote?.id;
+      if (!quoteId) {
+        throw new Error("Quote was created but the CRM did not return its ID.");
+      }
+
+      const staffUsername =
+        window.localStorage.getItem("staff_username") ||
+        window.localStorage.getItem("username") ||
+        "System";
+
+      const sendResponse = await fetch(`/api/quotes/${quoteId}/send/`, {
+        method: "POST",
+        headers: getAuthHeaders({
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          created_by: staffUsername,
+        }),
+      });
+
+      const sendData = await readJsonResponse(sendResponse, "The quote was created, but the CRM could not email it automatically.");
+
+      if (!sendResponse.ok || !sendData.success) {
+        throw new Error(
+          `Quote created but email failed: ${sendData.message || "Could not email quote."} Open /quotes/${quoteId} to send it manually.`
+        );
+      }
+
       setShowQuoteValidityModal(false);
-      router.push(`/quotes/${data.quote.id}`);
+      router.push(`/quotes/${quoteId}`);
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
