@@ -1917,9 +1917,6 @@ export default function StaffShell({ title, children }: StaffShellProps) {
                         <div className="text-sm font-bold">Notifications</div>
                         <div className="text-xs text-slate-500">{notificationBadgeCount} needing attention</div>
                       </div>
-                      <button onClick={markAllNotificationsRead} className="text-xs font-semibold text-violet-700">
-                        Mark PO read
-                      </button>
                     </div>
                     <div className="max-h-[420px] overflow-y-auto">
                       {calendarRequestCount > 0 ? (
