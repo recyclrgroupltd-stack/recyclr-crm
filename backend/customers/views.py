@@ -126,9 +126,16 @@ def _build_invoice_for_customer(customer, *, issue_date=None, period_start=None,
         .select_related("site")
         .order_by("site__site_name", "waste_type", "id")
     )
+    from containers.models import ContainerMovement
 
-    if not services.exists():
-        return None, "No active services to invoice."
+    billable_movements = ContainerMovement.objects.filter(
+        customer=customer,
+        billable_to_customer=True,
+        billed_at__isnull=True,
+    ).exclude(status=ContainerMovement.STATUS_CANCELLED).select_related("site", "container")
+
+    if not services.exists() and not billable_movements.exists():
+        return None, "No active services or billable bin movements to invoice."
 
     subtotal = Decimal("0.00")
     invoice = CustomerInvoice.objects.create(
@@ -166,6 +173,30 @@ def _build_invoice_for_customer(customer, *, issue_date=None, period_start=None,
         )
         subtotal += line_total
 
+    invoiced_movement_ids = []
+    for movement in billable_movements:
+        line_total = _decimal_money(movement.charge_amount)
+        if line_total <= 0:
+            continue
+        description_parts = [
+            movement.charge_reason or movement.get_movement_type_display(),
+            movement.get_bin_size_display(),
+            movement.get_waste_stream_display(),
+            movement.site.site_name if movement.site_id else customer.business_name,
+        ]
+        if movement.container_id:
+            description_parts.append(movement.container.container_uid)
+        CustomerInvoiceLine.objects.create(
+            invoice=invoice,
+            service=movement.service,
+            description=" - ".join(part for part in description_parts if part),
+            quantity=movement.quantity or 1,
+            unit_price=line_total,
+            line_total=line_total,
+        )
+        subtotal += line_total
+        invoiced_movement_ids.append(movement.id)
+
     if subtotal <= 0:
         invoice.delete()
         return None, "Active services have no monthly value to invoice."
@@ -176,6 +207,8 @@ def _build_invoice_for_customer(customer, *, issue_date=None, period_start=None,
     invoice.vat_amount = vat_amount
     invoice.total = total
     invoice.save(update_fields=["subtotal", "vat_amount", "total", "updated_at"])
+    if invoiced_movement_ids:
+        ContainerMovement.objects.filter(id__in=invoiced_movement_ids).update(billed_at=timezone.now())
 
     customer.last_invoiced_at = timezone.now()
     customer.next_invoice_date = issue_date + timedelta(days=30)

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Container, ContainerBatch, ContainerMaintenanceEvent
+from .models import Container, ContainerBatch, ContainerMaintenanceEvent, ContainerMovement
 
 
 @admin.register(ContainerBatch)
@@ -22,3 +22,10 @@ class ContainerMaintenanceEventAdmin(admin.ModelAdmin):
     list_display = ("container", "title", "status", "reported_by", "created_at", "resolved_at")
     search_fields = ("container__container_uid", "title", "notes", "reported_by")
     list_filter = ("status", "created_at")
+
+
+@admin.register(ContainerMovement)
+class ContainerMovementAdmin(admin.ModelAdmin):
+    list_display = ("movement_type", "status", "scheduled_date", "customer", "site", "container", "billable_to_customer", "billed_at")
+    search_fields = ("customer__business_name", "site__site_name", "container__container_uid", "reason", "charge_reason")
+    list_filter = ("movement_type", "status", "scheduled_date", "billable_to_customer", "billed_at")

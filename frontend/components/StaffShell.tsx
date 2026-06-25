@@ -167,6 +167,7 @@ const settingsItems: NavItem[] = [
 
 const containerItems: NavItem[] = [
   { label: "Containers", href: "/containers", icon: "B" },
+  { label: "Deliveries", href: "/containers/movements", icon: "D" },
   { label: "Maintenance", href: "/containers/maintenance", icon: "M" },
 ];
 
@@ -404,6 +405,7 @@ export default function StaffShell({ title, children }: StaffShellProps) {
         if (item.href === "/staff") return canViewStaff(currentUser);
         if (item.href === "/personnel") return canManageUsers(currentUser);
         if (item.href === "/containers") return canViewServices(currentUser);
+        if (item.href === "/containers/movements") return canViewServices(currentUser);
         if (item.href === "/containers/maintenance") return canViewServices(currentUser);
         if (item.href === "/settings/company-details") return canManageUsers(currentUser);
         return true;

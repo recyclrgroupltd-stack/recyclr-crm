@@ -19,6 +19,8 @@ from .models import (
     Container,
     ContainerBatch,
     ContainerMaintenanceEvent,
+    ContainerMovement,
+    create_replacement_delivery_movement,
 )
 
 
@@ -98,6 +100,37 @@ def _serialize_container(container, include_history=False):
         "created_at": container.created_at.isoformat() if container.created_at else "",
         "updated_at": container.updated_at.isoformat() if container.updated_at else "",
         "history": _serialize_container_history(container) if include_history else [],
+    }
+
+
+def _serialize_movement(movement):
+    return {
+        "id": movement.id,
+        "movement_type": movement.movement_type,
+        "movement_type_label": movement.get_movement_type_display(),
+        "status": movement.status,
+        "status_label": movement.get_status_display(),
+        "scheduled_date": movement.scheduled_date.isoformat() if movement.scheduled_date else "",
+        "customer_id": movement.customer_id,
+        "customer_name": movement.customer.business_name if movement.customer_id else "",
+        "site_id": movement.site_id,
+        "site_name": movement.site.site_name if movement.site_id else "",
+        "service_id": movement.service_id,
+        "container_id": movement.container_id,
+        "container_uid": movement.container.container_uid if movement.container_id else "",
+        "waste_stream": movement.waste_stream,
+        "waste_stream_label": movement.get_waste_stream_display(),
+        "bin_size": movement.bin_size,
+        "bin_size_label": movement.get_bin_size_display(),
+        "quantity": movement.quantity,
+        "reason": movement.reason,
+        "created_by": movement.created_by,
+        "completed_at": movement.completed_at.isoformat() if movement.completed_at else "",
+        "billable_to_customer": movement.billable_to_customer,
+        "charge_amount": float(movement.charge_amount or 0),
+        "charge_reason": movement.charge_reason,
+        "billed_at": movement.billed_at.isoformat() if movement.billed_at else "",
+        "created_at": movement.created_at.isoformat() if movement.created_at else "",
     }
 
 
@@ -390,6 +423,187 @@ def _assign_replacement_for_container(container):
     return replacement
 
 
+def _parse_date(value, field_name="date"):
+    if not value:
+        return None
+    try:
+        return timezone.datetime.fromisoformat(str(value)).date()
+    except (TypeError, ValueError):
+        raise ValidationError(f"Invalid {field_name}.")
+
+
+@csrf_exempt
+def movements_list(request):
+    if request.method == "GET":
+        status = (request.GET.get("status") or "").strip()
+        movement_type = (request.GET.get("type") or "").strip()
+        search = (request.GET.get("search") or "").strip().lower()
+
+        movements = ContainerMovement.objects.select_related(
+            "customer",
+            "site",
+            "service",
+            "container",
+        ).all()
+
+        if status and status != "all":
+            movements = movements.filter(status=status)
+        if movement_type and movement_type != "all":
+            movements = movements.filter(movement_type=movement_type)
+
+        rows = [_serialize_movement(movement) for movement in movements[:500]]
+        if search:
+            rows = [
+                row
+                for row in rows
+                if search
+                in " ".join(
+                    [
+                        row["movement_type_label"],
+                        row["status_label"],
+                        row["customer_name"],
+                        row["site_name"],
+                        row["container_uid"],
+                        row["waste_stream_label"],
+                        row["bin_size_label"],
+                        row["reason"],
+                        row["charge_reason"],
+                    ]
+                ).lower()
+            ]
+
+        return JsonResponse(
+            {
+                "success": True,
+                "rows": rows,
+                "summary": {
+                    "total": len(rows),
+                    "scheduled": sum(1 for row in rows if row["status"] == ContainerMovement.STATUS_SCHEDULED),
+                    "completed": sum(1 for row in rows if row["status"] == ContainerMovement.STATUS_COMPLETED),
+                    "cancelled": sum(1 for row in rows if row["status"] == ContainerMovement.STATUS_CANCELLED),
+                    "billable": sum(1 for row in rows if row["billable_to_customer"] and not row["billed_at"]),
+                },
+                "movement_types": [
+                    {"value": value, "label": label}
+                    for value, label in ContainerMovement.TYPE_CHOICES
+                ],
+                "movement_statuses": [
+                    {"value": value, "label": label}
+                    for value, label in ContainerMovement.STATUS_CHOICES
+                ],
+            }
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    payload = _parse_json_body(request)
+    if payload is None:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    movement_type = str(payload.get("movement_type") or "").strip()
+    if movement_type not in {value for value, _ in ContainerMovement.TYPE_CHOICES}:
+        return JsonResponse({"success": False, "message": "Choose a delivery or collection type."}, status=400)
+
+    service = None
+    if payload.get("service_id"):
+        service = get_object_or_404(Service.objects.select_related("customer", "site"), pk=payload.get("service_id"))
+
+    container = None
+    if payload.get("container_id"):
+        container = get_object_or_404(Container.objects.select_related("site__customer", "service"), pk=payload.get("container_id"))
+
+    site = None
+    if payload.get("site_id"):
+        site = get_object_or_404(Site.objects.select_related("customer"), pk=payload.get("site_id"))
+    elif service:
+        site = service.site
+    elif container and container.site_id:
+        site = container.site
+
+    if not site or not site.customer_id:
+        return JsonResponse({"success": False, "message": "Choose a customer site for this bin movement."}, status=400)
+
+    try:
+        scheduled_date = _parse_date(payload.get("scheduled_date"), "scheduled date") or timezone.localdate()
+        quantity = max(int(payload.get("quantity") or getattr(service, "bin_count", 1) or 1), 1)
+    except (TypeError, ValueError, ValidationError) as exc:
+        message = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+        return JsonResponse({"success": False, "message": message or "Invalid movement details."}, status=400)
+
+    waste_stream = str(payload.get("waste_stream") or getattr(service, "waste_type", "") or getattr(container, "waste_stream", "") or "").strip()
+    bin_size = str(payload.get("bin_size") or getattr(service, "bin_size", "") or getattr(container, "bin_size", "") or "").strip()
+
+    if waste_stream not in {value for value, _ in WASTE_STREAM_CHOICES}:
+        return JsonResponse({"success": False, "message": "Choose a valid waste stream."}, status=400)
+    if bin_size not in {value for value, _ in BIN_SIZE_CHOICES}:
+        return JsonResponse({"success": False, "message": "Choose a valid bin size."}, status=400)
+
+    movement = ContainerMovement.objects.create(
+        movement_type=movement_type,
+        status=ContainerMovement.STATUS_SCHEDULED,
+        scheduled_date=scheduled_date,
+        customer=site.customer,
+        site=site,
+        service=service,
+        container=container,
+        waste_stream=waste_stream,
+        bin_size=bin_size,
+        quantity=quantity,
+        reason=str(payload.get("reason") or "").strip(),
+        created_by=_staff_username(request) or "CRM staff",
+        billable_to_customer=bool(payload.get("billable_to_customer")),
+        charge_amount=payload.get("charge_amount") or 0,
+        charge_reason=str(payload.get("charge_reason") or "").strip(),
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"{movement.get_movement_type_display()} scheduled.",
+            "movement": _serialize_movement(movement),
+        },
+        status=201,
+    )
+
+
+@csrf_exempt
+def movement_detail(request, movement_id):
+    movement = get_object_or_404(
+        ContainerMovement.objects.select_related("customer", "site", "service", "container"),
+        pk=movement_id,
+    )
+
+    if request.method == "GET":
+        return JsonResponse({"success": True, "movement": _serialize_movement(movement)})
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    payload = _parse_json_body(request)
+    if payload is None:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    action = str(payload.get("action") or "").strip().lower()
+    if action == "complete":
+        movement.status = ContainerMovement.STATUS_COMPLETED
+        movement.completed_at = timezone.now()
+        message = "Movement completed."
+    elif action == "cancel":
+        movement.status = ContainerMovement.STATUS_CANCELLED
+        movement.completed_at = None
+        message = "Movement cancelled."
+    elif action == "reopen":
+        movement.status = ContainerMovement.STATUS_SCHEDULED
+        movement.completed_at = None
+        message = "Movement reopened."
+    else:
+        return JsonResponse({"success": False, "message": "Choose complete, cancel, or reopen."}, status=400)
+
+    movement.save(update_fields=["status", "completed_at", "updated_at"])
+    return JsonResponse({"success": True, "message": message, "movement": _serialize_movement(movement)})
+
+
 @csrf_exempt
 def container_detail(request, container_id):
     container = get_object_or_404(Container.objects.select_related("site__customer", "service"), pk=container_id)
@@ -418,6 +632,7 @@ def container_detail(request, container_id):
     if "notes" in payload:
         container.notes = str(payload.get("notes") or "")
 
+    customer_damaged = bool(payload.get("eol_customer_damaged"))
     replacement = None
     previous_site_id = container.site_id
     previous_status = container.status
@@ -460,6 +675,23 @@ def container_detail(request, container_id):
                 and previous_status in [Container.STATUS_ASSIGNED, Container.STATUS_ACTIVE, Container.STATUS_MAINTENANCE]
             ):
                 replacement = _assign_replacement_for_container(container)
+                title = "Container marked EOL"
+                notes = "Customer damaged bin." if customer_damaged else "Container reached end of life."
+                ContainerMaintenanceEvent.objects.create(
+                    container=container,
+                    status=ContainerMaintenanceEvent.STATUS_EOL,
+                    title=title,
+                    notes=notes,
+                    reported_by=_staff_username(request),
+                    resolved_at=timezone.now(),
+                )
+                if replacement:
+                    create_replacement_delivery_movement(
+                        container,
+                        replacement,
+                        customer_damaged=customer_damaged,
+                        created_by=_staff_username(request) or "CRM automation",
+                    )
     except ValidationError as exc:
         messages = exc.messages if hasattr(exc, "messages") else [str(exc)]
         return JsonResponse({"success": False, "message": " ".join(messages)}, status=400)
@@ -596,6 +828,42 @@ def change_log(request):
                     ),
                     "status_label": event.get_status_display(),
                     "href": "/containers",
+                }
+            )
+
+        movements = ContainerMovement.objects.select_related("customer", "site", "container").order_by("-created_at", "-id")[:300]
+        for movement in movements:
+            rows.append(
+                {
+                    "id": f"movement-{movement.id}",
+                    "source": "container",
+                    "source_label": "Bin Movement",
+                    "title": f"{movement.get_movement_type_display()} {movement.get_status_display()}",
+                    "description": " - ".join(
+                        item
+                        for item in [
+                            movement.reason,
+                            movement.charge_reason,
+                            f"Scheduled {movement.scheduled_date}" if movement.scheduled_date else "",
+                        ]
+                        if item
+                    ),
+                    "actor": movement.created_by,
+                    "created_at": movement.created_at.isoformat() if movement.created_at else "",
+                    "object_id": movement.container_id,
+                    "object_label": movement.container.container_uid if movement.container_id else movement.customer.business_name,
+                    "object_detail": " - ".join(
+                        item
+                        for item in [
+                            movement.customer.business_name if movement.customer_id else "",
+                            movement.site.site_name if movement.site_id else "",
+                            movement.get_waste_stream_display(),
+                            movement.get_bin_size_display(),
+                        ]
+                        if item
+                    ),
+                    "status_label": movement.get_status_display(),
+                    "href": "/containers/movements",
                 }
             )
 

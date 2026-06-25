@@ -131,6 +131,7 @@ export default function ContainersPage() {
   const [selectedContainer, setSelectedContainer] = useState<ContainerRow | null>(null);
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedNotes, setSelectedNotes] = useState("");
+  const [eolCustomerDamaged, setEolCustomerDamaged] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -213,6 +214,7 @@ export default function ContainersPage() {
     setSelectedContainer(row);
     setSelectedStatus(row.status);
     setSelectedNotes(row.notes || "");
+    setEolCustomerDamaged(false);
     setShowHistory(false);
     try {
       const response = await fetch(`/api/containers/${row.id}/`, {
@@ -223,6 +225,7 @@ export default function ContainersPage() {
         setSelectedContainer(data.container);
         setSelectedStatus(data.container.status || row.status);
         setSelectedNotes(data.container.notes || "");
+        setEolCustomerDamaged(false);
       }
     } catch {
       // Keep the already-open row available if the detail refresh fails.
@@ -256,6 +259,7 @@ export default function ContainersPage() {
           status: selectedStatus,
           notes: selectedNotes,
           eol_reactivation_reason: eolReactivationReason,
+          eol_customer_damaged: eolCustomerDamaged,
         }),
       });
       const data = await response.json();
@@ -264,6 +268,7 @@ export default function ContainersPage() {
       setSelectedContainer(data.container || null);
       setSelectedStatus(data.container?.status || "");
       setSelectedNotes(data.container?.notes || "");
+      setEolCustomerDamaged(false);
       await loadContainers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update container.");
@@ -569,9 +574,20 @@ export default function ContainersPage() {
                       </p>
                     ) : null}
                     {selectedStatus === "eol" && selectedContainer.site_id ? (
-                      <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                        Saving this as EOL will try to assign a matching in-stock replacement to this site automatically.
-                      </p>
+                      <div className="mt-2 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                        <p>Saving this as EOL will try to assign a matching in-stock replacement to this site automatically.</p>
+                        <label className="mt-3 flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={eolCustomerDamaged}
+                            onChange={(event) => setEolCustomerDamaged(event.target.checked)}
+                            className="mt-1"
+                          />
+                          <span>
+                            Customer damaged bin - charge replacement delivery to their next invoice.
+                          </span>
+                        </label>
+                      </div>
                     ) : null}
                   </div>
 

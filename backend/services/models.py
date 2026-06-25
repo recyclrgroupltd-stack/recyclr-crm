@@ -216,5 +216,13 @@ class Service(models.Model):
         except Exception:
             pass
 
+        try:
+            from containers.models import ensure_collection_movement_for_service, ensure_delivery_movement_for_service
+
+            ensure_delivery_movement_for_service(self)
+            ensure_collection_movement_for_service(self)
+        except Exception:
+            pass
+
     def __str__(self):
         return f"{self.customer.business_name} - {self.get_waste_type_display()} - {self.get_bin_size_display()}"
