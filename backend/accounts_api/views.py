@@ -471,6 +471,18 @@ def login_view(request):
     user = authenticate(username=auth_username, password=password)
 
     if user is None:
+        if staff_user:
+            logger.warning(
+                "Staff login failed for input '%s' matched user_id=%s username='%s' is_active=%s is_staff=%s password_valid=%s",
+                username,
+                staff_user.pk,
+                staff_user.username,
+                staff_user.is_active,
+                staff_user.is_staff,
+                staff_user.check_password(password),
+            )
+        else:
+            logger.warning("Staff login failed for input '%s': no matching staff user", username)
         return Response(
             {"success": False, "message": "Invalid username or password."},
             status=status.HTTP_401_UNAUTHORIZED,

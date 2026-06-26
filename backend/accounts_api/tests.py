@@ -50,6 +50,17 @@ class StaffLoginTests(TestCase):
         self.assertTrue(response.data["success"])
         self.assertEqual(response.data["username"], "Jay.Gallagher")
 
+    def test_failed_password_does_not_log_user_in(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"username": "Jay", "password": "WrongPassword123@"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(response.data["success"])
+        self.assertNotIn("token", response.data)
+
     @override_settings(DEBUG=False)
     def test_production_staff_api_requires_signed_token(self):
         header_only_response = self.client.get(
