@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "crm_email.apps.CrmEmailConfig",
     "personnel.apps.PersonnelConfig",
     "ai_core.apps.AICoreConfig",
+    "assets.apps.AssetsConfig",
 ]
 
 MIDDLEWARE = [

@@ -155,6 +155,7 @@ const financeItems: NavItem[] = [
   { label: "Pricing", href: "/pricing", icon: "$" },
   { label: "Expenses", href: "/expenses", icon: "E" },
   { label: "Purchase Orders", href: "/purchase-orders", icon: "P" },
+  { label: "Assets", href: "/assets", icon: "A" },
   { label: "Reporting", href: "/reporting", icon: "R" },
 ];
 
