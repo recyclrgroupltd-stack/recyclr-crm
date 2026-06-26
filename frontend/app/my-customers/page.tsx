@@ -39,13 +39,14 @@ function normalise(value: string) {
 
 function formatStatus(value: string) {
   if (!value) return "-";
+  if (value === "setup_approval") return "Setup Approval";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function statusBadgeClass(value: string) {
   const normalised = normalise(value);
   if (normalised === "active") return "bg-emerald-100 text-emerald-800";
-  if (normalised === "ready_for_setup") return "bg-blue-100 text-blue-800";
+  if (normalised === "ready_for_setup" || normalised === "setup_approval") return "bg-blue-100 text-blue-800";
   if (normalised === "onboarding") return "bg-amber-100 text-amber-800";
   if (normalised === "inactive") return "bg-slate-200 text-slate-700";
   return "bg-violet-100 text-violet-800";

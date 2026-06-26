@@ -31,6 +31,7 @@ type CustomerRow = {
 
 function formatStatus(value: string) {
   if (!value) return "Active";
+  if (value === "setup_approval") return "Setup Approval";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -38,7 +39,7 @@ function statusBadgeClass(value: string) {
   const normalised = normalise(value);
   if (normalised === "active") return "bg-emerald-100 text-emerald-800";
   if (normalised === "onboarding") return "bg-amber-100 text-amber-800";
-  if (normalised === "ready_for_setup") return "bg-blue-100 text-blue-800";
+  if (normalised === "ready_for_setup" || normalised === "setup_approval") return "bg-blue-100 text-blue-800";
   if (normalised === "inactive") return "bg-slate-200 text-slate-700";
   return "bg-violet-100 text-violet-800";
 }
@@ -196,6 +197,7 @@ export default function CustomersPage() {
               >
                 <option value="all">All statuses</option>
                 <option value="onboarding">Onboarding</option>
+                <option value="setup_approval">Setup Approval</option>
                 <option value="ready_for_setup">Ready for Setup</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>

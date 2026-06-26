@@ -264,6 +264,9 @@ export default function EditCustomerPage() {
                   <option value="onboarding" className="bg-white text-black">
                     Onboarding
                   </option>
+                  <option value="setup_approval" className="bg-white text-black">
+                    Setup Approval
+                  </option>
                   <option value="ready_for_setup" className="bg-white text-black">
                     Ready for Setup
                   </option>

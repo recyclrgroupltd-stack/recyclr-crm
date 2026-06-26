@@ -101,7 +101,7 @@ def dashboard_overview(request):
     active_customers = Customer.objects.filter(services__status="active").distinct().count()
     active_services = Service.objects.filter(status="active").count()
     quotes_pending = Quote.objects.filter(status__in=["draft", "sent"]).count()
-    ready_for_setup_customers = Customer.objects.filter(status="ready_for_setup").count()
+    ready_for_setup_customers = Customer.objects.filter(status__in=["setup_approval", "ready_for_setup"]).count()
     pending_schedule_services = Service.objects.filter(status=Service.STATUS_PENDING_SCHEDULE).count()
     todays_jobs = Job.objects.filter(collection_date=today, status="scheduled").count()
     overdue_jobs = Job.objects.filter(collection_date__lt=today, status="scheduled").count()
@@ -182,7 +182,7 @@ def dashboard_overview(request):
     ready_for_setup_rows = []
     for customer in (
         Customer.objects.select_related("account_manager")
-        .filter(status="ready_for_setup")
+        .filter(status__in=["setup_approval", "ready_for_setup"])
         .order_by("-updated_at", "-created_at")[:8]
     ):
         ready_for_setup_rows.append(
@@ -190,6 +190,7 @@ def dashboard_overview(request):
                 "id": customer.id,
                 "business_name": _safe_str(customer.business_name),
                 "account_manager": _safe_str(customer.account_manager.username if customer.account_manager else ""),
+                "status": _safe_str(customer.status),
                 "created_at": customer.created_at.isoformat() if customer.created_at else "",
             }
         )

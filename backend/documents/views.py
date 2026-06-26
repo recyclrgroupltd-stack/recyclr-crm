@@ -739,8 +739,8 @@ def public_signing_pack_submit(request, token):
     if service_start_date:
         pack.customer.invoice_cycle_start_date = service_start_date
         pack.customer.next_invoice_date = service_start_date + timezone.timedelta(days=invoice_payment_terms_days)
-    if pack.customer.status != "ready_for_setup":
-        pack.customer.status = "ready_for_setup"
+    if pack.customer.status != "setup_approval":
+        pack.customer.status = "setup_approval"
     pack.customer.save(
         update_fields=[
             "invoice_payment_terms_days",
@@ -769,7 +769,7 @@ def public_signing_pack_submit(request, token):
         title="Onboarding documents signed",
         description=(
             f"{signed_name} signed the onboarding documents. "
-            "Customer account is ready for setup; services remain pending schedule until operations set collection days. "
+            "Customer account is waiting for account manager approval before CRM setup automation continues. "
             f"Account manager: {_staff_display_name(account_manager)}. "
             f"Invoicing: every {invoice_payment_terms_days} days from {_quote_start_date_label(pack.quote)}. "
             f"PO required: {'yes' if invoice_requires_po else 'no'}. "

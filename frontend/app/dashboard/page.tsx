@@ -60,6 +60,7 @@ type DashboardOverview = {
       id: number;
       business_name: string;
       account_manager: string;
+      status: string;
       created_at: string;
     }[];
     pending_schedule_services: {
@@ -307,7 +308,7 @@ export default function DashboardPage() {
         date: formatDateOnly(item.created_at),
         title: item.business_name,
         detail: item.account_manager ? `Manager: ${item.account_manager}` : "No manager set",
-        type: "Ready for setup",
+        type: item.status === "setup_approval" ? "Needs approval" : "Ready for setup",
         href: `/customers/${item.id}`,
         tone: "bg-emerald-600",
       })),
@@ -369,8 +370,8 @@ export default function DashboardPage() {
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
             <PriorityCard
               value={data.summary.ready_for_setup_customers}
-              label="Customers Ready For Setup"
-              helper="Signed and waiting for operations"
+              label="Setup Approvals"
+              helper="Signed customers needing manager review"
               href="/my-customers"
               tone="bg-emerald-100 text-emerald-800"
             />
@@ -448,7 +449,7 @@ export default function DashboardPage() {
                 {[
                   { label: "Quotes not yet accepted", value: data.summary.quotes_pending, href: "/quotes" },
                   { label: "Signing packs waiting", value: data.summary.signing_packs_waiting, href: "/contract-signing" },
-                  { label: "Customers ready for setup", value: data.summary.ready_for_setup_customers, href: "/my-customers" },
+                  { label: "Manager setup approvals", value: data.summary.ready_for_setup_customers, href: "/my-customers" },
                   { label: "Services pending schedule", value: data.summary.pending_schedule_services, href: "/services" },
                 ].map((item) => (
                   <Link key={item.label} href={item.href} className="flex items-center justify-between rounded-md bg-violet-50 px-3 py-3 text-sm font-bold hover:bg-violet-100">

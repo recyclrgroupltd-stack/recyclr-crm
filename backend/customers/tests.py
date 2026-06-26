@@ -3,13 +3,21 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth.hashers import make_password
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 
+from accounts_api.models import StaffProfile
+from accounts_api.views import create_staff_auth_token
+from containers.models import ContainerMovement
 from pricing.models import PriceBookItem
 from services.models import Service
 
 from .models import Customer
 from .views import _build_invoice_for_customer
+
+
+User = get_user_model()
 
 
 class CustomerPortalLoginTests(TestCase):
@@ -109,3 +117,55 @@ class CustomerInvoiceFlowTests(TestCase):
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.invoice_po_number, "")
         self.assertEqual(self.customer.next_invoice_date, date(2026, 7, 29))
+
+
+class CustomerSetupApprovalTests(TestCase):
+    def setUp(self):
+        PriceBookItem.objects.create(
+            waste_type="general",
+            bin_size="240",
+            price_per_lift=Decimal("10.00"),
+            rental_per_day=Decimal("0.00"),
+        )
+        self.manager = User.objects.create_user(username="Manager.One", password="Pass12345", is_staff=True)
+        StaffProfile.objects.create(user=self.manager)
+        self.manager.groups.add(Group.objects.create(name="Manager"))
+        self.customer = Customer.objects.create(
+            business_name="Aylestone Bakery",
+            contact_name="Sam Harper",
+            email="accounts@aylestonebakery.example",
+            status="setup_approval",
+            account_manager=self.manager,
+        )
+        self.site = self.customer.sites.create(site_name="Aylestone Bakery")
+        self.service = Service.objects.create(
+            customer=self.customer,
+            site=self.site,
+            waste_type="general",
+            bin_size="240",
+            bin_count=2,
+            collections_per_week=1,
+            status=Service.STATUS_PENDING_SCHEDULE,
+            schedule_start_date=date(2026, 7, 10),
+        )
+
+    def test_account_manager_approval_schedules_delivery_movement(self):
+        response = self.client.post(
+            f"/api/customers/{self.customer.id}/approve-setup/",
+            data=json.dumps({}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {create_staff_auth_token(self.manager)}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["delivery_movements_created"], 1)
+
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.status, "onboarding")
+
+        movement = ContainerMovement.objects.get(service=self.service)
+        self.assertEqual(movement.movement_type, ContainerMovement.TYPE_DELIVERY)
+        self.assertEqual(movement.quantity, 2)
+        self.assertEqual(movement.scheduled_date, date(2026, 7, 8))

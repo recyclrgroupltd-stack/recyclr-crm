@@ -16,6 +16,7 @@ from accounts_api.company_branding import get_company_details, get_company_logo_
 from accounts_api.models import StaffProfile
 from accounts_api.views import get_request_user_from_request, get_staff_role
 from crm_email.services import send_staff_mailbox_email
+from containers.models import ContainerMovement, suggested_delivery_date_for_service
 from documents.models import GeneratedDocument, SignedPackDocument, SigningPack
 from jobs.models import Job
 from purchase_orders.models import StaffNotification
@@ -300,6 +301,14 @@ def _serialize_account_manager(user):
 
 def _can_change_account_manager(user):
     return bool(user and get_staff_role(user) in {"admin", "manager"})
+
+
+def _can_approve_customer_setup(user, customer):
+    if not user:
+        return False
+    if get_staff_role(user) in {"admin", "manager"}:
+        return True
+    return bool(customer.account_manager_id and customer.account_manager_id == user.id)
 
 
 def _default_mailbox_user():
@@ -851,6 +860,83 @@ def customer_account_manager_update(request, customer_id):
             "message": "Account manager updated.",
             "email_status": safe_email_status,
             "account_manager": _serialize_account_manager(new_manager),
+        }
+    )
+
+
+@csrf_exempt
+def customer_setup_approve(request, customer_id):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    acting_user = get_request_user_from_request(request)
+    customer = get_object_or_404(
+        Customer.objects.select_related("account_manager", "account_manager__staff_profile"),
+        pk=customer_id,
+    )
+
+    if not _can_approve_customer_setup(acting_user, customer):
+        return JsonResponse(
+            {"success": False, "message": "Only this account manager, an admin, or a manager can approve setup."},
+            status=403,
+        )
+
+    services = list(
+        Service.objects.select_related("customer", "site")
+        .filter(customer=customer, status=Service.STATUS_PENDING_SCHEDULE)
+        .order_by("id")
+    )
+    delivery_count = 0
+    for service in services:
+        movement, created = ContainerMovement.objects.get_or_create(
+            movement_type=ContainerMovement.TYPE_DELIVERY,
+            service=service,
+            defaults={
+                "status": ContainerMovement.STATUS_SCHEDULED,
+                "customer": service.customer,
+                "site": service.site,
+                "scheduled_date": suggested_delivery_date_for_service(service),
+                "waste_stream": service.waste_type,
+                "bin_size": service.bin_size,
+                "quantity": max(int(service.bin_count or 1), 1),
+                "reason": "Auto scheduled after account manager approved customer setup.",
+                "created_by": _staff_display_name(acting_user),
+            },
+        )
+        if created:
+            delivery_count += 1
+
+    old_status = customer.status or ""
+    customer.status = "onboarding"
+    customer.save(update_fields=["status", "updated_at"])
+
+    create_customer_activity(
+        customer=customer,
+        activity_type="system",
+        title="Customer setup approved",
+        description=(
+            f"{_staff_display_name(acting_user)} approved setup review. "
+            f"CRM scheduled {delivery_count} bin delivery movement(s). "
+            f"{len(services)} service(s) still need collection days/start checks before going live."
+        ),
+        created_by=_staff_display_name(acting_user),
+    )
+
+    StaffNotification.objects.filter(
+        recipient=acting_user,
+        source_type="customer_onboarding",
+        source_id=customer.id,
+        is_read=False,
+    ).update(is_read=True)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Setup approved. Bin delivery work has been scheduled automatically.",
+            "old_status": old_status,
+            "status": customer.status,
+            "delivery_movements_created": delivery_count,
+            "services_pending_schedule": len(services),
         }
     )
 

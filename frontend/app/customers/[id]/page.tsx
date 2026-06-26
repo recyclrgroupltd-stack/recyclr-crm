@@ -255,6 +255,7 @@ function formatDate(value: string) {
 
 function formatStatus(value: string) {
   if (!value) return "-";
+  if (value === "setup_approval") return "Setup Approval";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -266,7 +267,7 @@ function customerStatusClass(value: string) {
   if (normalised === "onboarding") {
     return "bg-amber-100 text-amber-800";
   }
-  if (normalised === "ready_for_setup") {
+  if (normalised === "ready_for_setup" || normalised === "setup_approval") {
     return "bg-blue-100 text-blue-800";
   }
   if (normalised === "inactive") {
@@ -595,6 +596,9 @@ export default function CustomerOverviewPage() {
   const [managerSaving, setManagerSaving] = useState(false);
   const [managerMessage, setManagerMessage] = useState("");
   const [managerError, setManagerError] = useState("");
+  const [setupApproving, setSetupApproving] = useState(false);
+  const [setupMessage, setSetupMessage] = useState("");
+  const [setupError, setSetupError] = useState("");
   const [invoiceGenerating, setInvoiceGenerating] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
@@ -633,7 +637,9 @@ export default function CustomerOverviewPage() {
         setLoading(true);
         setError("");
 
-        const res = await fetch(`/api/customers/${customerId}/overview/`);
+        const res = await fetch(`/api/customers/${customerId}/overview/`, {
+          headers: getAuthHeaders(),
+        });
         const json = (await res.json()) as OverviewResponse;
 
         if (!res.ok) {
@@ -691,7 +697,9 @@ export default function CustomerOverviewPage() {
       const json = await response.json();
       if (!response.ok || !json.success) throw new Error(json.message || "Could not update account manager.");
 
-      const refresh = await fetch(`/api/customers/${customerId}/overview/`);
+      const refresh = await fetch(`/api/customers/${customerId}/overview/`, {
+        headers: getAuthHeaders(),
+      });
       const refreshJson = await refresh.json();
       if (refresh.ok) {
         setData(refreshJson);
@@ -713,7 +721,9 @@ export default function CustomerOverviewPage() {
   }
 
   async function refreshOverview() {
-    const refresh = await fetch(`/api/customers/${customerId}/overview/`);
+    const refresh = await fetch(`/api/customers/${customerId}/overview/`, {
+      headers: getAuthHeaders(),
+    });
     const refreshJson = await refresh.json();
     if (refresh.ok) {
       setData(refreshJson);
@@ -744,6 +754,31 @@ export default function CustomerOverviewPage() {
       setInvoiceError(err instanceof Error ? err.message : "Could not generate invoice.");
     } finally {
       setInvoiceGenerating(false);
+    }
+  }
+
+  async function approveCustomerSetup() {
+    setSetupApproving(true);
+    setSetupMessage("");
+    setSetupError("");
+
+    try {
+      const response = await fetch(`/api/customers/${customerId}/approve-setup/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.success) throw new Error(json.message || "Could not approve setup.");
+      await refreshOverview();
+      setSetupMessage(json.message || "Setup approved.");
+    } catch (err) {
+      setSetupError(err instanceof Error ? err.message : "Could not approve setup.");
+    } finally {
+      setSetupApproving(false);
     }
   }
 
@@ -993,7 +1028,17 @@ export default function CustomerOverviewPage() {
                   </p>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
+                  {data.customer.status === "setup_approval" || data.customer.status === "ready_for_setup" ? (
+                    <button
+                      type="button"
+                      onClick={approveCustomerSetup}
+                      disabled={setupApproving}
+                      className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {setupApproving ? "Approving..." : "Approve Setup"}
+                    </button>
+                  ) : null}
                   <Link
                     href={`/customers/${customerId}/edit`}
                     className="rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-800"
@@ -1002,6 +1047,14 @@ export default function CustomerOverviewPage() {
                   </Link>
                 </div>
               </div>
+
+              {(setupMessage || setupError) ? (
+                <div className={`mt-4 rounded-lg border p-3 text-sm font-bold ${
+                  setupError ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                }`}>
+                  {setupError || setupMessage}
+                </div>
+              ) : null}
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard label="Monthly Revenue" value={formatMoney(data.summary.monthly_value)} />
