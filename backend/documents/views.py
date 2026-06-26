@@ -313,6 +313,8 @@ def _serialize_pack(pack, public=False):
         "signed_at": pack.signed_at.isoformat() if pack.signed_at else "",
         "expires_at": pack.expires_at.isoformat() if pack.expires_at else "",
         "acceptance_service_start_date": pack.acceptance_service_start_date,
+        "invoice_payment_terms_days": int(pack.invoice_payment_terms_days or pack.customer.invoice_payment_terms_days or 30),
+        "invoice_requires_po": bool(pack.invoice_requires_po or pack.customer.invoice_requires_po),
         "created_at": pack.created_at.isoformat() if pack.created_at else "",
         "updated_at": pack.updated_at.isoformat() if pack.updated_at else "",
         "document_count": pack.documents.count(),
@@ -680,6 +682,13 @@ def public_signing_pack_submit(request, token):
     acceptance_authority = bool(request.data.get("acceptance_authority"))
     acceptance_documents = bool(request.data.get("acceptance_documents"))
     acceptance_service_start_date = bool(request.data.get("acceptance_service_start_date"))
+    try:
+        invoice_payment_terms_days = int(request.data.get("invoice_payment_terms_days") or 30)
+    except (TypeError, ValueError):
+        invoice_payment_terms_days = 30
+    if invoice_payment_terms_days not in {7, 14, 30}:
+        return Response({"success": False, "message": "Please choose 7, 14, or 30 day invoicing."}, status=400)
+    invoice_requires_po = bool(request.data.get("invoice_requires_po"))
 
     if not signed_name or not signed_email or not signature_data:
         return Response({"success": False, "message": "Please enter your name, email, and signature."}, status=400)
@@ -693,6 +702,8 @@ def public_signing_pack_submit(request, token):
     pack.acceptance_authority = acceptance_authority
     pack.acceptance_documents = acceptance_documents
     pack.acceptance_service_start_date = acceptance_service_start_date
+    pack.invoice_payment_terms_days = invoice_payment_terms_days
+    pack.invoice_requires_po = invoice_requires_po
     pack.signed_at = timezone.now()
     pack.signed_ip_address = _request_ip(request)
     pack.signed_user_agent = request.META.get("HTTP_USER_AGENT", "")
@@ -709,6 +720,8 @@ def public_signing_pack_submit(request, token):
         "acceptance_documents": acceptance_documents,
         "acceptance_service_start_date": acceptance_service_start_date,
         "service_start_date": _quote_start_date_iso(pack.quote),
+        "invoice_payment_terms_days": invoice_payment_terms_days,
+        "invoice_requires_po": invoice_requires_po,
     }
     try:
         _save_signature_image(pack, signature_data)
@@ -717,9 +730,29 @@ def public_signing_pack_submit(request, token):
     pack.save()
     _create_signed_documents(pack)
     account_manager = _assign_account_manager(pack.customer)
+    service_start_date = _quote_start_date(pack.quote)
+    pack.customer.invoice_payment_terms_days = invoice_payment_terms_days
+    pack.customer.invoice_requires_po = invoice_requires_po
+    pack.customer.auto_invoice_enabled = True
+    if not pack.customer.invoice_email:
+        pack.customer.invoice_email = signed_email or pack.signer_email or pack.customer.email
+    if service_start_date:
+        pack.customer.invoice_cycle_start_date = service_start_date
+        pack.customer.next_invoice_date = service_start_date + timezone.timedelta(days=invoice_payment_terms_days)
     if pack.customer.status != "ready_for_setup":
         pack.customer.status = "ready_for_setup"
-        pack.customer.save(update_fields=["status", "updated_at"])
+    pack.customer.save(
+        update_fields=[
+            "invoice_payment_terms_days",
+            "invoice_requires_po",
+            "auto_invoice_enabled",
+            "invoice_email",
+            "invoice_cycle_start_date",
+            "next_invoice_date",
+            "status",
+            "updated_at",
+        ]
+    )
 
     email_status = "not sent"
     try:
@@ -738,6 +771,8 @@ def public_signing_pack_submit(request, token):
             f"{signed_name} signed the onboarding documents. "
             "Customer account is ready for setup; services remain pending schedule until operations set collection days. "
             f"Account manager: {_staff_display_name(account_manager)}. "
+            f"Invoicing: every {invoice_payment_terms_days} days from {_quote_start_date_label(pack.quote)}. "
+            f"PO required: {'yes' if invoice_requires_po else 'no'}. "
             f"Customer next-steps email status: {email_status}."
         ),
         created_by="Customer",

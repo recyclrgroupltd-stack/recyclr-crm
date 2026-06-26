@@ -101,6 +101,8 @@ class SigningPack(models.Model):
     acceptance_authority = models.BooleanField(default=False)
     acceptance_documents = models.BooleanField(default=False)
     acceptance_service_start_date = models.BooleanField(default=False)
+    invoice_payment_terms_days = models.PositiveSmallIntegerField(default=30)
+    invoice_requires_po = models.BooleanField(default=False)
 
     sent_at = models.DateTimeField(null=True, blank=True)
     viewed_at = models.DateTimeField(null=True, blank=True)

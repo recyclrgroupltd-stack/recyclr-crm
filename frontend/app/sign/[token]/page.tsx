@@ -18,6 +18,8 @@ type SigningPack = {
   signed_at: string;
   expires_at: string;
   acceptance_service_start_date: boolean;
+  invoice_payment_terms_days: number;
+  invoice_requires_po: boolean;
   company: {
     name: string;
     logo_data: string;
@@ -67,6 +69,8 @@ export default function PublicSigningPage() {
   const [acceptanceTerms, setAcceptanceTerms] = useState(false);
   const [acceptanceAuthority, setAcceptanceAuthority] = useState(false);
   const [acceptanceServiceStartDate, setAcceptanceServiceStartDate] = useState(false);
+  const [invoicePaymentTermsDays, setInvoicePaymentTermsDays] = useState(30);
+  const [invoiceRequiresPo, setInvoiceRequiresPo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -83,6 +87,8 @@ export default function PublicSigningPage() {
       setSignedName(data.pack.signer_name || data.pack.signed_name || "");
       setSignedEmail(data.pack.signer_email || data.pack.signed_email || "");
       setAcceptanceServiceStartDate(Boolean(data.pack.acceptance_service_start_date));
+      setInvoicePaymentTermsDays(Number(data.pack.invoice_payment_terms_days || 30));
+      setInvoiceRequiresPo(Boolean(data.pack.invoice_requires_po));
     } catch (err) {
       setError(err instanceof Error ? err.message : "This signing link could not be loaded.");
     } finally {
@@ -171,6 +177,8 @@ export default function PublicSigningPage() {
           acceptance_terms: acceptanceTerms,
           acceptance_authority: acceptanceAuthority,
           acceptance_service_start_date: acceptanceServiceStartDate,
+          invoice_payment_terms_days: invoicePaymentTermsDays,
+          invoice_requires_po: invoiceRequiresPo,
         }),
       });
       const data = await response.json();
@@ -307,6 +315,42 @@ export default function PublicSigningPage() {
                   <div className="mt-1 text-lg font-black text-emerald-950">
                     {pack?.service_start_date_label || "To be confirmed"}
                   </div>
+                </div>
+
+                <div className="rounded-lg border border-sky-100 bg-sky-50 p-4">
+                  <div className="text-xs font-black uppercase tracking-wide text-sky-700">Invoicing</div>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">
+                    Choose when the first invoice should be raised from the agreed service start date.
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {[7, 14, 30].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => setInvoicePaymentTermsDays(days)}
+                        className={`rounded-lg border px-3 py-3 text-sm font-black ${
+                          invoicePaymentTermsDays === days
+                            ? "border-sky-600 bg-sky-600 text-white"
+                            : "border-sky-200 bg-white text-sky-900"
+                        }`}
+                      >
+                        {days} days
+                      </button>
+                    ))}
+                  </div>
+                  <label className="mt-4 flex gap-3 rounded-lg bg-white p-3 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={invoiceRequiresPo}
+                      onChange={(event) => setInvoiceRequiresPo(event.target.checked)}
+                    />
+                    A PO number is required before invoices can be generated.
+                  </label>
+                  {invoiceRequiresPo ? (
+                    <p className="mt-2 text-xs font-bold text-sky-800">
+                      The customer portal will request the PO 24 hours before each invoice is due to be created.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50 p-4">

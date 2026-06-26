@@ -65,6 +65,7 @@ def _billing_payload(customer):
         "invoice_email": getattr(customer, "invoice_email", "") or "",
         "invoice_po_number": getattr(customer, "invoice_po_number", "") or "",
         "auto_invoice_enabled": bool(getattr(customer, "auto_invoice_enabled", True)),
+        "invoice_cycle_start_date": customer.invoice_cycle_start_date.isoformat() if getattr(customer, "invoice_cycle_start_date", None) else "",
         "next_invoice_date": customer.next_invoice_date.isoformat() if getattr(customer, "next_invoice_date", None) else "",
         "last_invoiced_at": customer.last_invoiced_at.isoformat() if getattr(customer, "last_invoiced_at", None) else "",
     }
@@ -113,12 +114,62 @@ def _service_monthly_value(service):
     )
 
 
+def _invoice_cycle_period(customer, issue_date):
+    terms_days = int(customer.invoice_payment_terms_days or 30)
+    if customer.last_invoiced_at:
+        period_start = issue_date - timedelta(days=terms_days)
+    elif customer.invoice_cycle_start_date:
+        period_start = customer.invoice_cycle_start_date
+    else:
+        period_start = issue_date - timedelta(days=terms_days)
+    return period_start, issue_date
+
+
+def _portal_po_request_payload(customer):
+    if not customer.auto_invoice_enabled or not customer.invoice_requires_po or not customer.next_invoice_date:
+        return None
+    terms_days = int(customer.invoice_payment_terms_days or 30)
+    period_start = customer.invoice_cycle_start_date or (customer.next_invoice_date - timedelta(days=terms_days))
+    if customer.last_invoiced_at:
+        period_start = customer.next_invoice_date - timedelta(days=terms_days)
+    period_end = customer.next_invoice_date
+    required_by = customer.next_invoice_date - timedelta(days=1)
+    return {
+        "required": True,
+        "po_number": customer.invoice_po_number or "",
+        "invoice_date": customer.next_invoice_date.isoformat(),
+        "required_by": required_by.isoformat(),
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "payment_terms_days": terms_days,
+        "message": (
+            f"PO number for invoice covering {period_start.strftime('%d/%m/%Y')} "
+            f"to {period_end.strftime('%d/%m/%Y')} is required by {required_by.strftime('%d/%m/%Y')}."
+        ),
+    }
+
+
 def _build_invoice_for_customer(customer, *, issue_date=None, period_start=None, period_end=None):
     issue_date = issue_date or timezone.localdate()
-    period_start = period_start or issue_date.replace(day=1)
-    period_end = period_end or issue_date
+    if not period_start or not period_end:
+        default_start, default_end = _invoice_cycle_period(customer, issue_date)
+        period_start = period_start or default_start
+        period_end = period_end or default_end
     terms_days = int(customer.invoice_payment_terms_days or 30)
     due_date = issue_date + timedelta(days=terms_days)
+    if customer.invoice_requires_po and not customer.invoice_po_number:
+        return None, "PO number is required before this invoice can be generated."
+    duplicate = (
+        CustomerInvoice.objects.filter(
+            customer=customer,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        .exclude(status=CustomerInvoice.STATUS_CANCELLED)
+        .first()
+    )
+    if duplicate:
+        return None, f"{duplicate.invoice_number} already exists for this invoice period."
     company = get_company_details()
     vat_rate = _decimal_money(getattr(company, "vat_rate", 20))
     services = (
@@ -211,8 +262,12 @@ def _build_invoice_for_customer(customer, *, issue_date=None, period_start=None,
         ContainerMovement.objects.filter(id__in=invoiced_movement_ids).update(billed_at=timezone.now())
 
     customer.last_invoiced_at = timezone.now()
-    customer.next_invoice_date = issue_date + timedelta(days=30)
-    customer.save(update_fields=["last_invoiced_at", "next_invoice_date", "updated_at"])
+    customer.next_invoice_date = issue_date + timedelta(days=terms_days)
+    update_fields = ["last_invoiced_at", "next_invoice_date", "updated_at"]
+    if customer.invoice_requires_po:
+        customer.invoice_po_number = ""
+        update_fields.append("invoice_po_number")
+    customer.save(update_fields=update_fields)
 
     create_customer_activity(
         customer=customer,
@@ -486,6 +541,10 @@ def _customer_portal_payload(customer):
             "document_count": len(generated_documents) + len(signed_documents),
             "open_signing_pack_count": sum(1 for pack in signing_packs if pack.status != "signed"),
             "monthly_value": float(monthly_value),
+        },
+        "billing": {
+            **_billing_payload(customer),
+            "po_request": _portal_po_request_payload(customer),
         },
         "sites": [
             {
@@ -1174,6 +1233,52 @@ def customer_portal_request(request):
         )
 
     return JsonResponse({"success": True, "message": "Your request has been sent to the team."})
+
+
+@csrf_exempt
+def customer_portal_invoice_po(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    customer = _customer_from_portal_request(request)
+    if not customer:
+        return JsonResponse({"success": False, "message": "Your customer portal session has expired."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    po_number = str(payload.get("po_number") or "").strip()
+    if not po_number:
+        return JsonResponse({"success": False, "message": "Please enter the PO number."}, status=400)
+    if not customer.invoice_requires_po:
+        return JsonResponse({"success": False, "message": "This account is not set to require PO numbers."}, status=400)
+
+    customer.invoice_po_number = po_number[:100]
+    customer.save(update_fields=["invoice_po_number", "updated_at"])
+
+    create_customer_activity(
+        customer=customer,
+        activity_type="system",
+        title="Invoice PO number supplied",
+        description=(
+            f"Customer supplied PO {customer.invoice_po_number} for the next invoice. "
+            f"{(_portal_po_request_payload(customer) or {}).get('message', '')}"
+        ),
+        created_by=customer.contact_name or customer.email or customer.business_name,
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "PO number saved for the next invoice.",
+            "billing": {
+                **_billing_payload(customer),
+                "po_request": _portal_po_request_payload(customer),
+            },
+        }
+    )
 
 
 def customer_portal_document_download(request, document_id):

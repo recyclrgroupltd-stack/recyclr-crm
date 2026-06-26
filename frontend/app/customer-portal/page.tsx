@@ -99,6 +99,26 @@ type PortalData = {
   success: boolean;
   company: Company;
   customer: PortalCustomer;
+  billing: {
+    invoice_requires_po: boolean;
+    invoice_payment_terms_days: number;
+    invoice_email: string;
+    invoice_po_number: string;
+    auto_invoice_enabled: boolean;
+    invoice_cycle_start_date: string;
+    next_invoice_date: string;
+    last_invoiced_at: string;
+    po_request: null | {
+      required: boolean;
+      po_number: string;
+      invoice_date: string;
+      required_by: string;
+      period_start: string;
+      period_end: string;
+      payment_terms_days: number;
+      message: string;
+    };
+  };
   summary: {
     site_count: number;
     service_count: number;
@@ -154,7 +174,9 @@ export default function CustomerPortalPage() {
   const [siteId, setSiteId] = useState("");
   const [preferredDay, setPreferredDay] = useState("");
   const [message, setMessage] = useState("");
+  const [poNumber, setPoNumber] = useState("");
   const [sending, setSending] = useState(false);
+  const [savingPo, setSavingPo] = useState(false);
 
   async function loadDashboard(savedToken: string) {
     setLoading(true);
@@ -171,6 +193,7 @@ export default function CustomerPortalPage() {
       }
       if (!response.ok || !payload.success) throw new Error(payload.message || "Could not load the portal.");
       setData(payload);
+      setPoNumber(payload.billing?.po_request?.po_number || payload.billing?.invoice_po_number || "");
     } catch (err) {
       setError(friendlyApiError(err));
     } finally {
@@ -229,6 +252,37 @@ export default function CustomerPortalPage() {
       setError(friendlyApiError(err));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function savePoNumber(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) return;
+    setSavingPo(true);
+    setNotice("");
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/invoice-po/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Customer-Portal-Token": token,
+        },
+        body: JSON.stringify({ po_number: poNumber }),
+      });
+      const payload = await readApiPayload(response, "Could not save PO number.");
+      if (response.status === 401) {
+        localStorage.removeItem("recyclrCustomerPortalToken");
+        router.replace("/customer-portal/login");
+        return;
+      }
+      if (!response.ok || !payload.success) throw new Error(payload.message || "Could not save PO number.");
+      setNotice(payload.message || "PO number saved.");
+      await loadDashboard(token);
+    } catch (err) {
+      setError(friendlyApiError(err));
+    } finally {
+      setSavingPo(false);
     }
   }
 
@@ -538,6 +592,43 @@ export default function CustomerPortalPage() {
           </div>
 
           <aside className="space-y-5">
+            {data.billing?.po_request ? (
+              <section className="rounded-lg border border-amber-200 bg-white p-5">
+                <div className="text-xs font-black uppercase tracking-wide text-amber-600">Invoice PO Required</div>
+                <h2 className="mt-1 text-xl font-black">Next invoice PO</h2>
+                <p className="mt-2 text-sm font-semibold text-slate-600">{data.billing.po_request.message}</p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg bg-amber-50 p-3">
+                    <div className="text-xs font-black uppercase text-amber-700">Invoice Date</div>
+                    <div className="mt-1 font-black">{formatDate(data.billing.po_request.invoice_date)}</div>
+                  </div>
+                  <div className="rounded-lg bg-red-50 p-3">
+                    <div className="text-xs font-black uppercase text-red-700">Needed By</div>
+                    <div className="mt-1 font-black">{formatDate(data.billing.po_request.required_by)}</div>
+                  </div>
+                </div>
+                <form onSubmit={savePoNumber} className="mt-4 space-y-3">
+                  <label className="block">
+                    <span className="text-xs font-black uppercase text-slate-500">PO Number</span>
+                    <input
+                      value={poNumber}
+                      onChange={(event) => setPoNumber(event.target.value)}
+                      placeholder="Enter PO number"
+                      className="mt-2 w-full rounded-lg border border-amber-100 bg-amber-50 px-3 py-3 font-bold outline-none focus:border-amber-500"
+                      required
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={savingPo}
+                    className="w-full rounded-lg bg-amber-500 px-4 py-3 font-black text-slate-950 disabled:bg-slate-300"
+                  >
+                    {savingPo ? "Saving..." : "Save PO Number"}
+                  </button>
+                </form>
+              </section>
+            ) : null}
+
             <section className="rounded-lg bg-white p-5">
               <h2 className="text-xl font-black">Account Manager</h2>
               {accountManager ? (

@@ -37,6 +37,7 @@ class Customer(models.Model):
     invoice_email = models.EmailField(blank=True)
     invoice_po_number = models.CharField(max_length=100, blank=True)
     auto_invoice_enabled = models.BooleanField(default=True)
+    invoice_cycle_start_date = models.DateField(null=True, blank=True)
     next_invoice_date = models.DateField(null=True, blank=True)
     last_invoiced_at = models.DateTimeField(null=True, blank=True)
     portal_enabled = models.BooleanField(default=False)
