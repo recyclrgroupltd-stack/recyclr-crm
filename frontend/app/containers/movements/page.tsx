@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import StaffShell from "@/components/StaffShell";
 import { getAuthHeaders } from "@/lib/auth";
+import { apiPath, friendlyApiError, readApiPayload } from "@/lib/apiBase";
 import { getWasteStreamStyle } from "@/lib/wasteStreams";
 
 type Choice = { value: string; label: string };
@@ -94,8 +95,8 @@ export default function ContainerMovementsPage() {
   );
 
   async function loadOptions() {
-    const response = await fetch("/api/containers/options/", { headers: getAuthHeaders() });
-    const data = await response.json();
+    const response = await fetch(apiPath("/api/containers/options/"), { headers: getAuthHeaders() });
+    const data = await readApiPayload(response, "Could not load bin options.");
     if (!response.ok || !data.success) throw new Error(data.message || "Could not load bin options.");
     setServices(data.services || []);
     setWasteStreams(data.waste_streams || []);
@@ -107,8 +108,8 @@ export default function ContainerMovementsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (typeFilter) params.set("type", typeFilter);
     if (search.trim()) params.set("search", search.trim());
-    const response = await fetch(`/api/containers/movements/?${params.toString()}`, { headers: getAuthHeaders() });
-    const data = await response.json();
+    const response = await fetch(apiPath(`/api/containers/movements/?${params.toString()}`), { headers: getAuthHeaders() });
+    const data = await readApiPayload(response, "Could not load deliveries.");
     if (!response.ok || !data.success) throw new Error(data.message || "Could not load deliveries.");
     setRows(data.rows || []);
     setSummary(data.summary || emptySummary);
@@ -123,7 +124,7 @@ export default function ContainerMovementsPage() {
         setError("");
         await Promise.all([loadOptions(), loadMovements()]);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load bin movements.");
+        setError(friendlyApiError(err));
       } finally {
         setLoading(false);
       }
@@ -133,7 +134,7 @@ export default function ContainerMovementsPage() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      loadMovements().catch((err) => setError(err instanceof Error ? err.message : "Could not load deliveries."));
+      loadMovements().catch((err) => setError(friendlyApiError(err)));
     }, 150);
     return () => window.clearTimeout(timeout);
   }, [statusFilter, typeFilter, search]);
@@ -153,7 +154,7 @@ export default function ContainerMovementsPage() {
       setSaving(true);
       setError("");
       setMessage("");
-      const response = await fetch("/api/containers/movements/", {
+      const response = await fetch(apiPath("/api/containers/movements/"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
@@ -162,7 +163,7 @@ export default function ContainerMovementsPage() {
           site_id: selectedService?.site_id || null,
         }),
       });
-      const data = await response.json();
+      const data = await readApiPayload(response, "Could not schedule bin movement.");
       if (!response.ok || !data.success) throw new Error(data.message || "Could not schedule bin movement.");
       setMessage(data.message || "Bin movement scheduled.");
       setForm((current) => ({
@@ -175,7 +176,7 @@ export default function ContainerMovementsPage() {
       }));
       await loadMovements();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not schedule bin movement.");
+      setError(friendlyApiError(err));
     } finally {
       setSaving(false);
     }
@@ -186,17 +187,17 @@ export default function ContainerMovementsPage() {
       setSaving(true);
       setError("");
       setMessage("");
-      const response = await fetch(`/api/containers/movements/${row.id}/`, {
+      const response = await fetch(apiPath(`/api/containers/movements/${row.id}/`), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({ action }),
       });
-      const data = await response.json();
+      const data = await readApiPayload(response, "Could not update movement.");
       if (!response.ok || !data.success) throw new Error(data.message || "Could not update movement.");
       setMessage(data.message || "Movement updated.");
       await loadMovements();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update movement.");
+      setError(friendlyApiError(err));
     } finally {
       setSaving(false);
     }

@@ -84,3 +84,13 @@ class ContainerLifecycleTests(TestCase):
         rows = response.json()["rows"]
         self.assertTrue(any(row["source"] == "container" and row["description"] == "Cracked body." for row in rows))
         self.assertTrue(any(row["source"] == "customer" and row["object_label"] == "Acme Ltd" for row in rows))
+
+    def test_movements_list_returns_json_when_empty(self):
+        response = self.client.get("/api/containers/movements/", HTTP_X_STAFF_USERNAME="Jay")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["rows"], [])
+        self.assertIn("movement_types", data)
+        self.assertIn("movement_statuses", data)
