@@ -419,7 +419,8 @@ def _build_signed_certificate(pack, source_document):
 
     if pack.signature_image:
         try:
-            signature = Image(pack.signature_image.path, width=220, height=80)
+            with pack.signature_image.open("rb") as signature_file:
+                signature = Image(BytesIO(signature_file.read()), width=220, height=80)
             signature.hAlign = "LEFT"
             story.append(signature)
         except Exception:

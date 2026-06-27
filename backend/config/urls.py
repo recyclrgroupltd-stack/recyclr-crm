@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 
 from .views import admin_actions_view, health_view
+from stored_files.views import serve_media_file
 
 urlpatterns = [
     path("api/health/", health_view, name="api-health"),
@@ -33,6 +34,7 @@ urlpatterns = [
     path("api/assets/", include("assets.urls")),
     path("api/", include("leads_api.urls")),
     path("api/documents/", include("documents.urls")),
+    re_path(r"^media/(?P<path>.+)$", serve_media_file, name="stored-media"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

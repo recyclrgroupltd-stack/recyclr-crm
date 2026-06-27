@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "personnel.apps.PersonnelConfig",
     "ai_core.apps.AICoreConfig",
     "assets.apps.AssetsConfig",
+    "stored_files.apps.StoredFilesConfig",
 ]
 
 MIDDLEWARE = [
@@ -133,7 +134,7 @@ STATICFILES_DIRS = [
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": os.getenv("DJANGO_FILE_STORAGE", "stored_files.storage.DatabaseFileStorage"),
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
