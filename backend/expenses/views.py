@@ -1,5 +1,6 @@
 import json
 import re
+from io import BytesIO
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -84,10 +85,25 @@ def _receipt_text(receipt_file):
     if not raw:
         return "", "empty", "Receipt file was empty."
 
+    if raw.startswith(b"%PDF"):
+        try:
+            from pypdf import PdfReader
+
+            reader = PdfReader(BytesIO(raw))
+            pages = []
+            for page in reader.pages[:10]:
+                pages.append(page.extract_text() or "")
+            readable = _clean_extracted_receipt_text("\n".join(pages))
+            if readable:
+                return readable[:20000], "extracted", "Text was read from the uploaded PDF receipt."
+            return "", "stored_only", "Receipt PDF saved, but no readable text was found."
+        except Exception:
+            return "", "stored_only", "Receipt PDF saved. Text extraction is not available, so please check the fields manually."
+
     try:
         text = raw.decode("utf-8", errors="ignore")
-        readable = "".join(char for char in text if char.isprintable() or char in "\n\r\t")
-        if len(readable.strip()) > 30:
+        readable = _clean_extracted_receipt_text(text)
+        if readable:
             return readable[:20000], "extracted", "Text was read from the uploaded file."
     except Exception:
         pass
@@ -105,6 +121,35 @@ def _receipt_text(receipt_file):
         return "", "stored_only", "Receipt saved. OCR is not available locally, so please check the fields manually."
 
     return "", "stored_only", "Receipt saved, but no readable text was found."
+
+
+def _clean_extracted_receipt_text(text):
+    readable = "".join(char for char in str(text or "") if char.isprintable() or char in "\n\r\t")
+    lines = [line.strip() for line in readable.splitlines() if line.strip()]
+    if not lines:
+        return ""
+
+    pdf_noise_markers = (
+        "%PDF",
+        "ReportLab Generated PDF document",
+        "obj",
+        "endobj",
+        "/BaseFont",
+        "/Subtype /Type",
+        "/Filter [ /ASCII85Decode /FlateDecode ]",
+        "xref",
+        "trailer",
+        "startxref",
+    )
+    noise_hits = sum(1 for line in lines[:30] if any(marker in line for marker in pdf_noise_markers))
+    if readable.lstrip().startswith("%PDF") or noise_hits >= 3:
+        return ""
+
+    clean_lines = [line for line in lines if not any(marker in line for marker in pdf_noise_markers)]
+    cleaned = "\n".join(clean_lines).strip()
+    if len(cleaned) < 30:
+        return ""
+    return cleaned
 
 
 def _extract_receipt_fields(text):
@@ -242,6 +287,7 @@ def _serialize_category(category):
 
 def _serialize_expense(expense):
     lines = list(getattr(expense, "lines", []).all()) if expense.id else []
+    extracted_text = _clean_extracted_receipt_text(expense.extracted_text)
     return {
         "id": expense.id,
         "submitted_by_id": expense.submitted_by_id,
@@ -262,7 +308,7 @@ def _serialize_expense(expense):
         "receipt_original_name": expense.receipt_original_name,
         "extraction_status": expense.extraction_status,
         "extraction_message": expense.extraction_message,
-        "extracted_text": expense.extracted_text,
+        "extracted_text": extracted_text,
         "extracted_merchant": expense.extracted_merchant,
         "extracted_date": expense.extracted_date.isoformat() if expense.extracted_date else "",
         "extracted_amount": float(expense.extracted_amount) if expense.extracted_amount is not None else None,
