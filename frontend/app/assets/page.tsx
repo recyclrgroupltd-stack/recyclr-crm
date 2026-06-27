@@ -89,6 +89,18 @@ function statusClass(status: string) {
   return classes[status] || "bg-slate-100 text-slate-700";
 }
 
+async function readApiJson(response: Response, fallbackMessage: string) {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      response.status === 404
+        ? "Assets backend is not deployed yet. Wait for Render to finish deploying the latest commit, then refresh."
+        : fallbackMessage
+    );
+  }
+  return response.json();
+}
+
 export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [summary, setSummary] = useState<Summary>({ total: 0, active: 0, in_repair: 0, retired: 0, filtered: 0 });
@@ -130,7 +142,7 @@ export default function AssetsPage() {
 
   async function loadOptions() {
     const response = await fetch("/api/assets/options/", { headers: getAuthHeaders() });
-    const data = await response.json();
+    const data = await readApiJson(response, "Could not load asset options.");
     if (!response.ok || !data.success) throw new Error(data.message || "Could not load asset options.");
     setCategories(data.categories || []);
     setStatuses(data.statuses || []);
@@ -145,7 +157,7 @@ export default function AssetsPage() {
     if (statusFilter) params.set("status", statusFilter);
     if (categoryFilter) params.set("category", categoryFilter);
     const response = await fetch(`/api/assets/?${params.toString()}`, { headers: getAuthHeaders() });
-    const data = await response.json();
+    const data = await readApiJson(response, "Could not load assets.");
     if (!response.ok || !data.success) throw new Error(data.message || "Could not load assets.");
     setAssets(data.rows || []);
     setSummary(data.summary || { total: 0, active: 0, in_repair: 0, retired: 0, filtered: 0 });
@@ -188,7 +200,7 @@ export default function AssetsPage() {
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(form),
       });
-      const data = await response.json();
+      const data = await readApiJson(response, "Could not create asset.");
       if (!response.ok || !data.success) throw new Error(data.message || "Could not create asset.");
       setMessage(data.message || "Asset created.");
       setForm(emptyAsset);
@@ -203,7 +215,7 @@ export default function AssetsPage() {
 
   async function openAsset(assetId: number) {
     const response = await fetch(`/api/assets/${assetId}/`, { headers: getAuthHeaders() });
-    const data = await response.json();
+    const data = await readApiJson(response, "Could not open asset.");
     if (!response.ok || !data.success) throw new Error(data.message || "Could not open asset.");
     setSelected(data.asset);
   }
@@ -220,7 +232,7 @@ export default function AssetsPage() {
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(editForm),
       });
-      const data = await response.json();
+      const data = await readApiJson(response, "Could not update asset.");
       if (!response.ok || !data.success) throw new Error(data.message || "Could not update asset.");
       setMessage(data.message || "Asset updated.");
       setSelected(data.asset);
