@@ -308,6 +308,28 @@ export default function ExpensesPage() {
     }
   }
 
+  async function deleteExpense(expenseId: number) {
+    if (!window.confirm("Delete this expense claim and its receipt? This cannot be undone.")) return;
+    setSaving(true);
+    setMessage("");
+    setError("");
+    try {
+      const response = await fetch(`/api/expenses/${expenseId}/`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not delete expense.");
+      setMessage(data.message || "Expense deleted.");
+      setSelectedExpense((current) => (current?.id === expenseId ? null : current));
+      await loadExpenses();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete expense.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function createCategory() {
     const name = newCategoryName.trim();
     if (!name) return;
@@ -687,6 +709,11 @@ export default function ExpensesPage() {
                                   Reject
                                 </button>
                               </>
+                            ) : null}
+                            {canApprove ? (
+                              <button type="button" disabled={saving} onClick={() => deleteExpense(expense.id)} className="rounded-md bg-red-50 px-3 py-2 text-xs font-black text-red-700 disabled:opacity-50">
+                                Delete
+                              </button>
                             ) : null}
                           </div>
                         </td>

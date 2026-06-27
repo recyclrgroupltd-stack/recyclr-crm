@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import get_user_model
+from django.core.files.storage import default_storage
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -472,6 +473,19 @@ def expense_detail(request, expense_id):
         expense.vat_amount = _decimal(payload.get("vat_amount"), expense.vat_amount)
         expense.save()
         return JsonResponse({"success": True, "message": "Expense updated.", "expense": _serialize_expense(expense)})
+
+    if request.method == "DELETE":
+        can_delete = user_has_permission(user, "expenses.approve") or (
+            expense.submitted_by_id == user.id and expense.status == ExpenseClaim.STATUS_SUBMITTED
+        )
+        if not can_delete:
+            return JsonResponse({"success": False, "message": "You cannot delete this expense."}, status=403)
+
+        receipt_name = expense.receipt.name if expense.receipt else ""
+        expense.delete()
+        if receipt_name:
+            default_storage.delete(receipt_name)
+        return JsonResponse({"success": True, "message": "Expense deleted."})
 
     return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
 
