@@ -3,14 +3,14 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import quote
 
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts_api.views import get_request_user_from_request
 from expenses.models import ExpenseClaim
-from purchase_orders.models import PurchaseOrder
+from purchase_orders.models import PurchaseOrder, PurchaseOrderLine
 
 from .models import Asset, AssetEvent
 
@@ -48,6 +48,42 @@ def _staff_display_name(user):
 
 def _asset_qr_url(asset):
     return f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={quote(asset.qr_payload)}"
+
+
+def _format_money(value):
+    return f"GBP {Decimal(value or 0):,.2f}"
+
+
+def _purchase_order_option_label(order):
+    line = next(iter(getattr(order, "prefetched_lines", [])), None)
+    description = line.description if line else "No line description"
+    supplier = order.supplier.name if order.supplier_id else "Supplier not set"
+    return " | ".join(
+        [
+            order.po_number or f"PO-{order.id:06d}",
+            supplier,
+            description,
+            order.get_status_display(),
+            _format_money(order.total_inc_vat),
+            order.order_date.strftime("%d/%m/%Y") if order.order_date else "No date",
+        ]
+    )
+
+
+def _expense_option_label(expense):
+    staff_name = _staff_display_name(expense.submitted_by)
+    merchant = expense.merchant or expense.category.name
+    return " | ".join(
+        [
+            f"EXP-{expense.id:06d}",
+            merchant,
+            expense.category.name,
+            staff_name or "Staff not set",
+            expense.get_status_display(),
+            _format_money(expense.amount),
+            expense.expense_date.strftime("%d/%m/%Y") if expense.expense_date else "No date",
+        ]
+    )
 
 
 def _serialize_asset(asset, include_events=False):
@@ -95,8 +131,12 @@ def options(request):
         return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
 
     staff = User.objects.filter(is_staff=True, is_active=True).order_by("username")
-    purchase_orders = PurchaseOrder.objects.order_by("-id")[:100]
-    expenses = ExpenseClaim.objects.order_by("-id")[:100]
+    purchase_orders = (
+        PurchaseOrder.objects.select_related("supplier")
+        .prefetch_related(Prefetch("lines", queryset=PurchaseOrderLine.objects.order_by("line_order", "id"), to_attr="prefetched_lines"))
+        .order_by("-id")[:250]
+    )
+    expenses = ExpenseClaim.objects.select_related("submitted_by", "category").order_by("-id")[:250]
     return JsonResponse(
         {
             "success": True,
@@ -106,14 +146,14 @@ def options(request):
             "purchase_orders": [
                 {
                     "id": order.id,
-                    "label": f"{order.po_number or order.id} - {order.supplier.name if order.supplier_id else 'Supplier'}",
+                    "label": _purchase_order_option_label(order),
                 }
                 for order in purchase_orders
             ],
             "expenses": [
                 {
                     "id": expense.id,
-                    "label": f"EXP-{expense.id:06d} - {expense.merchant or expense.category.name}",
+                    "label": _expense_option_label(expense),
                 }
                 for expense in expenses
             ],
