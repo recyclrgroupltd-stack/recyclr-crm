@@ -1,11 +1,20 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import StaffShell from "@/components/StaffShell";
 import { getAuthHeaders } from "@/lib/auth";
 
 type Choice = { value: string; label: string };
-type Option = { id: number; name?: string; label?: string };
+type Option = {
+  id: number;
+  name?: string;
+  label?: string;
+  purchase_date?: string;
+  purchase_value?: number | string;
+  supplier?: string;
+};
+type AssetLocation = { id?: number | null; name: string; label: string; kind?: string; address?: string };
 
 type AssetEvent = {
   id: number;
@@ -66,6 +75,9 @@ const emptyAsset = {
   expense_claim_id: "",
 };
 
+const inputClass = "rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold";
+const lockedInputClass = `${inputClass} cursor-not-allowed text-slate-500`;
+
 function formatMoney(value: number | string) {
   const amount = Number(value || 0);
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(amount);
@@ -87,6 +99,16 @@ function statusClass(status: string) {
     sold: "bg-blue-100 text-blue-800",
   };
   return classes[status] || "bg-slate-100 text-slate-700";
+}
+
+function applyPurchaseDefaults<T extends Record<string, string>>(current: T, option?: Option): T {
+  if (!option) return current;
+  return {
+    ...current,
+    purchase_date: option.purchase_date || current.purchase_date,
+    purchase_value: option.purchase_value !== undefined && option.purchase_value !== null ? String(option.purchase_value) : current.purchase_value,
+    supplier: option.supplier || current.supplier,
+  };
 }
 
 function labelParts(label?: string) {
@@ -222,9 +244,11 @@ export default function AssetsPage() {
   const [categories, setCategories] = useState<Choice[]>([]);
   const [statuses, setStatuses] = useState<Choice[]>([]);
   const [staff, setStaff] = useState<Option[]>([]);
+  const [locations, setLocations] = useState<AssetLocation[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<Option[]>([]);
   const [expenses, setExpenses] = useState<Option[]>([]);
   const [form, setForm] = useState(emptyAsset);
+  const [newLocation, setNewLocation] = useState({ name: "", kind: "depot", address: "" });
   const [selected, setSelected] = useState<Asset | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -262,6 +286,7 @@ export default function AssetsPage() {
     setCategories(data.categories || []);
     setStatuses(data.statuses || []);
     setStaff(data.staff || []);
+    setLocations(data.locations || []);
     setPurchaseOrders(data.purchase_orders || []);
     setExpenses(data.expenses || []);
   }
@@ -359,6 +384,33 @@ export default function AssetsPage() {
     }
   }
 
+  async function createLocation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      setSaving(true);
+      setMessage("");
+      setError("");
+      const response = await fetch("/api/assets/locations/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(newLocation),
+      });
+      const data = await readApiJson(response, "Could not save asset location.");
+      if (!response.ok || !data.success) throw new Error(data.message || "Could not save asset location.");
+      setLocations((current) => {
+        const withoutDuplicate = current.filter((location) => location.name.toLowerCase() !== data.location.name.toLowerCase());
+        return [...withoutDuplicate, data.location].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setForm((current) => ({ ...current, location: data.location.name }));
+      setNewLocation({ name: "", kind: "depot", address: "" });
+      setMessage(data.message || "Asset location saved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save asset location.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function printAssetLabel(asset: Asset) {
     const html = `<!doctype html>
 <html>
@@ -399,6 +451,9 @@ button { margin: 8px; padding: 8px 12px; }
     printWindow.focus();
   }
 
+  const purchaseLocked = Boolean(form.purchase_order_id || form.expense_claim_id);
+  const editPurchaseLocked = Boolean(editForm?.purchase_order_id || editForm?.expense_claim_id);
+
   return (
     <StaffShell title="Assets">
       <div className="space-y-4">
@@ -432,6 +487,7 @@ button { margin: 8px; padding: 8px 12px; }
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[390px_minmax(0,1fr)]">
+          <div className="space-y-4">
           <form onSubmit={createAsset} className="rounded-lg bg-white p-5 text-slate-950">
             <h2 className="text-lg font-black">Add Asset</h2>
             <div className="mt-4 grid gap-3">
@@ -453,8 +509,12 @@ button { margin: 8px; padding: 8px 12px; }
               <Field label="Serial / IMEI">
                 <input value={form.serial_number} onChange={(event) => setForm({ ...form, serial_number: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="R52W60BSXMN" />
               </Field>
-              <Field label="Location">
-                <input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Leicester office, van, staff member..." />
+              <Field label="Location / depot">
+                <select value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} className={inputClass}>
+                  <option value="">Choose a location...</option>
+                  {form.location && !locations.some((location) => location.name === form.location) ? <option value={form.location}>{form.location}</option> : null}
+                  {locations.map((location) => <option key={`${location.id || location.name}`} value={location.name}>{location.label || location.name}</option>)}
+                </select>
               </Field>
               <Field label="Assigned to">
                 <select value={form.assigned_to_id} onChange={(event) => setForm({ ...form, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
@@ -464,14 +524,14 @@ button { margin: 8px; padding: 8px 12px; }
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Purchase date">
-                  <input type="date" value={form.purchase_date} onChange={(event) => setForm({ ...form, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                  <input type="date" value={form.purchase_date} readOnly={purchaseLocked} onChange={(event) => setForm({ ...form, purchase_date: event.target.value })} className={purchaseLocked ? lockedInputClass : inputClass} />
                 </Field>
                 <Field label="Purchase value">
-                  <input value={form.purchase_value} onChange={(event) => setForm({ ...form, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="506.99" />
+                  <input value={form.purchase_value} readOnly={purchaseLocked} onChange={(event) => setForm({ ...form, purchase_value: event.target.value })} className={purchaseLocked ? lockedInputClass : inputClass} placeholder="Auto from PO/expense" />
                 </Field>
               </div>
               <Field label="Supplier">
-                <input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Backmarket" />
+                <input value={form.supplier} readOnly={purchaseLocked} onChange={(event) => setForm({ ...form, supplier: event.target.value })} className={purchaseLocked ? lockedInputClass : inputClass} placeholder="Auto from PO/expense" />
               </Field>
               <Field label="Purchase order link">
                 <SearchableLinkSelect
@@ -480,7 +540,7 @@ button { margin: 8px; padding: 8px 12px; }
                   placeholder="Search PO, supplier, description, amount..."
                   emptyLabel="No linked purchase order"
                   options={purchaseOrders}
-                  onChange={(value) => setForm({ ...form, purchase_order_id: value })}
+                  onChange={(value) => setForm((current) => applyPurchaseDefaults({ ...current, purchase_order_id: value }, purchaseOrders.find((option) => String(option.id) === value)))}
                 />
               </Field>
               <Field label="Expense receipt link">
@@ -490,7 +550,7 @@ button { margin: 8px; padding: 8px 12px; }
                   placeholder="Search expense, item, merchant, staff, amount..."
                   emptyLabel="No linked expense"
                   options={expenses}
-                  onChange={(value) => setForm({ ...form, expense_claim_id: value })}
+                  onChange={(value) => setForm((current) => applyPurchaseDefaults({ ...current, expense_claim_id: value }, expenses.find((option) => String(option.id) === value)))}
                 />
               </Field>
               <Field label="Notes">
@@ -501,6 +561,41 @@ button { margin: 8px; padding: 8px 12px; }
               </button>
             </div>
           </form>
+
+          <form onSubmit={createLocation} className="rounded-lg bg-white p-5 text-slate-950">
+            <h2 className="text-lg font-black">Asset Locations</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Add depots, storage areas, vehicles, or offices once, then choose them from the asset form.</p>
+            <div className="mt-4 grid gap-3">
+              <Field label="Location name">
+                <input value={newLocation.name} onChange={(event) => setNewLocation({ ...newLocation, name: event.target.value })} className={inputClass} placeholder="Leicester Depot" />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Type">
+                  <select value={newLocation.kind} onChange={(event) => setNewLocation({ ...newLocation, kind: event.target.value })} className={inputClass}>
+                    <option value="depot">Depot</option>
+                    <option value="office">Office</option>
+                    <option value="vehicle">Vehicle</option>
+                    <option value="storage">Storage</option>
+                    <option value="other">Other</option>
+                  </select>
+                </Field>
+                <button disabled={saving || !newLocation.name.trim()} className="self-end rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
+                  Add Location
+                </button>
+              </div>
+              <Field label="Address / notes">
+                <input value={newLocation.address} onChange={(event) => setNewLocation({ ...newLocation, address: event.target.value })} className={inputClass} placeholder="Optional" />
+              </Field>
+              <div className="max-h-40 overflow-auto rounded-lg border border-slate-100">
+                {locations.length ? locations.map((location) => (
+                  <button key={`${location.id || location.name}-quick`} type="button" onClick={() => setForm({ ...form, location: location.name })} className="block w-full border-b border-slate-100 px-3 py-2 text-left text-sm font-bold last:border-b-0 hover:bg-violet-50">
+                    {location.label || location.name}
+                  </button>
+                )) : <div className="px-3 py-3 text-sm font-semibold text-slate-500">No saved locations yet.</div>}
+              </div>
+            </div>
+          </form>
+          </div>
 
           <div className="space-y-4">
             <div className="rounded-lg bg-white p-5 text-slate-950">
@@ -592,8 +687,12 @@ button { margin: 8px; padding: 8px 12px; }
                         {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
                       </select>
                     </Field>
-                    <Field label="Location">
-                      <input value={editForm.location} onChange={(event) => setEditForm({ ...editForm, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Location" />
+                    <Field label="Location / depot">
+                      <select value={editForm.location} onChange={(event) => setEditForm({ ...editForm, location: event.target.value })} className={inputClass}>
+                        <option value="">Choose a location...</option>
+                        {editForm.location && !locations.some((location) => location.name === editForm.location) ? <option value={editForm.location}>{editForm.location}</option> : null}
+                        {locations.map((location) => <option key={`${location.id || location.name}-edit`} value={location.name}>{location.label || location.name}</option>)}
+                      </select>
                     </Field>
                     <Field label="Assigned to">
                       <select value={editForm.assigned_to_id} onChange={(event) => setEditForm({ ...editForm, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
@@ -602,13 +701,13 @@ button { margin: 8px; padding: 8px 12px; }
                       </select>
                     </Field>
                     <Field label="Purchase date">
-                      <input type="date" value={editForm.purchase_date} onChange={(event) => setEditForm({ ...editForm, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                      <input type="date" value={editForm.purchase_date} readOnly={editPurchaseLocked} onChange={(event) => setEditForm({ ...editForm, purchase_date: event.target.value })} className={editPurchaseLocked ? lockedInputClass : inputClass} />
                     </Field>
                     <Field label="Purchase value">
-                      <input value={editForm.purchase_value} onChange={(event) => setEditForm({ ...editForm, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Value" />
+                      <input value={editForm.purchase_value} readOnly={editPurchaseLocked} onChange={(event) => setEditForm({ ...editForm, purchase_value: event.target.value })} className={editPurchaseLocked ? lockedInputClass : inputClass} placeholder="Auto from PO/expense" />
                     </Field>
                     <Field label="Supplier">
-                      <input value={editForm.supplier} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Supplier" />
+                      <input value={editForm.supplier} readOnly={editPurchaseLocked} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className={editPurchaseLocked ? lockedInputClass : inputClass} placeholder="Auto from PO/expense" />
                     </Field>
                     <Field label="Warranty expiry">
                       <input type="date" value={editForm.warranty_expiry} onChange={(event) => setEditForm({ ...editForm, warranty_expiry: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
@@ -620,7 +719,7 @@ button { margin: 8px; padding: 8px 12px; }
                         placeholder="Search PO, supplier, description, amount..."
                         emptyLabel="No linked purchase order"
                         options={purchaseOrders}
-                        onChange={(value) => setEditForm({ ...editForm, purchase_order_id: value })}
+                        onChange={(value) => setEditForm((current) => current ? applyPurchaseDefaults({ ...current, purchase_order_id: value }, purchaseOrders.find((option) => String(option.id) === value)) : current)}
                       />
                     </Field>
                     <Field label="Expense receipt link">
@@ -630,7 +729,7 @@ button { margin: 8px; padding: 8px 12px; }
                         placeholder="Search expense, item, merchant, staff, amount..."
                         emptyLabel="No linked expense"
                         options={expenses}
-                        onChange={(value) => setEditForm({ ...editForm, expense_claim_id: value })}
+                        onChange={(value) => setEditForm((current) => current ? applyPurchaseDefaults({ ...current, expense_claim_id: value }, expenses.find((option) => String(option.id) === value)) : current)}
                       />
                     </Field>
                     <Field label="Notes" className="md:col-span-2">

@@ -12,7 +12,7 @@ from accounts_api.views import get_request_user_from_request
 from expenses.models import ExpenseClaim, ExpenseLine
 from purchase_orders.models import PurchaseOrder, PurchaseOrderLine
 
-from .models import Asset, AssetEvent
+from .models import Asset, AssetEvent, AssetLocation
 
 
 User = get_user_model()
@@ -54,6 +54,14 @@ def _format_money(value):
     return f"GBP {Decimal(value or 0):,.2f}"
 
 
+def _date_value(value):
+    return value.isoformat() if value else ""
+
+
+def _money_value(value):
+    return float(Decimal(value or 0))
+
+
 def _purchase_order_option_label(order):
     line = next(iter(getattr(order, "prefetched_lines", [])), None)
     description = line.description if line else "No line description"
@@ -89,6 +97,50 @@ def _expense_option_label(expense):
     )
 
 
+def _expense_supplier(expense):
+    line = next(iter(getattr(expense, "prefetched_lines", [])), None)
+    return expense.merchant or (line.merchant if line and line.merchant else "")
+
+
+def _serialize_location(location):
+    return {
+        "id": location.id,
+        "name": location.name,
+        "label": f"{location.name} - {location.get_kind_display()}",
+        "kind": location.kind,
+        "kind_label": location.get_kind_display(),
+        "address": location.address,
+        "active": location.active,
+    }
+
+
+def _purchase_defaults_from_links(purchase_order_id=None, expense_claim_id=None):
+    if expense_claim_id:
+        expense = (
+            ExpenseClaim.objects.select_related("category")
+            .prefetch_related(Prefetch("lines", queryset=ExpenseLine.objects.order_by("id"), to_attr="prefetched_lines"))
+            .filter(pk=expense_claim_id)
+            .first()
+        )
+        if expense:
+            return {
+                "purchase_date": expense.expense_date,
+                "purchase_value": expense.amount,
+                "supplier": _expense_supplier(expense),
+            }
+
+    if purchase_order_id:
+        order = PurchaseOrder.objects.select_related("supplier").filter(pk=purchase_order_id).first()
+        if order:
+            return {
+                "purchase_date": order.order_date,
+                "purchase_value": order.total_inc_vat,
+                "supplier": order.supplier.name if order.supplier_id else "",
+            }
+
+    return {}
+
+
 def _serialize_asset(asset, include_events=False):
     return {
         "id": asset.id,
@@ -102,8 +154,8 @@ def _serialize_asset(asset, include_events=False):
         "location": asset.location,
         "assigned_to_id": asset.assigned_to_id,
         "assigned_to_name": _staff_display_name(asset.assigned_to),
-        "purchase_date": asset.purchase_date.isoformat() if asset.purchase_date else "",
-        "purchase_value": float(asset.purchase_value or 0),
+        "purchase_date": _date_value(asset.purchase_date),
+        "purchase_value": _money_value(asset.purchase_value),
         "supplier": asset.supplier,
         "warranty_expiry": asset.warranty_expiry.isoformat() if asset.warranty_expiry else "",
         "notes": asset.notes,
@@ -134,6 +186,13 @@ def options(request):
         return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
 
     staff = User.objects.filter(is_staff=True, is_active=True).order_by("username")
+    location_rows = list(AssetLocation.objects.filter(active=True).order_by("name"))
+    managed_names = {location.name.strip().lower() for location in location_rows}
+    existing_locations = [
+        location
+        for location in Asset.objects.exclude(location="").values_list("location", flat=True).distinct().order_by("location")
+        if location and location.strip().lower() not in managed_names
+    ]
     purchase_orders = (
         PurchaseOrder.objects.select_related("supplier")
         .prefetch_related(Prefetch("lines", queryset=PurchaseOrderLine.objects.order_by("line_order", "id"), to_attr="prefetched_lines"))
@@ -150,10 +209,28 @@ def options(request):
             "categories": [{"value": value, "label": label} for value, label in Asset.CATEGORY_CHOICES],
             "statuses": [{"value": value, "label": label} for value, label in Asset.STATUS_CHOICES],
             "staff": [{"id": user.id, "name": _staff_display_name(user)} for user in staff],
+            "locations": [
+                *[_serialize_location(location) for location in location_rows],
+                *[
+                    {
+                        "id": None,
+                        "name": location,
+                        "label": f"{location} - Saved location",
+                        "kind": "other",
+                        "kind_label": "Saved location",
+                        "address": "",
+                        "active": True,
+                    }
+                    for location in existing_locations
+                ],
+            ],
             "purchase_orders": [
                 {
                     "id": order.id,
                     "label": _purchase_order_option_label(order),
+                    "purchase_date": _date_value(order.order_date),
+                    "purchase_value": _money_value(order.total_inc_vat),
+                    "supplier": order.supplier.name if order.supplier_id else "",
                 }
                 for order in purchase_orders
             ],
@@ -161,11 +238,42 @@ def options(request):
                 {
                     "id": expense.id,
                     "label": _expense_option_label(expense),
+                    "purchase_date": _date_value(expense.expense_date),
+                    "purchase_value": _money_value(expense.amount),
+                    "supplier": _expense_supplier(expense),
                 }
                 for expense in expenses
             ],
         }
     )
+
+
+@csrf_exempt
+def locations(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+    data = _parse_json_body(request)
+    if data is None:
+        return JsonResponse({"success": False, "message": "Invalid JSON."}, status=400)
+
+    name = str(data.get("name") or "").strip()
+    if not name:
+        return JsonResponse({"success": False, "message": "Location name is required."}, status=400)
+
+    location, created = AssetLocation.objects.get_or_create(
+        name=name,
+        defaults={
+            "kind": str(data.get("kind") or AssetLocation.KIND_DEPOT),
+            "address": str(data.get("address") or "").strip(),
+        },
+    )
+    if not created:
+        location.kind = str(data.get("kind") or location.kind or AssetLocation.KIND_DEPOT)
+        location.address = str(data.get("address") or location.address or "").strip()
+        location.active = True
+        location.save(update_fields=["kind", "address", "active"])
+    return JsonResponse({"success": True, "message": f"{location.name} saved.", "location": _serialize_location(location)})
 
 
 @csrf_exempt
@@ -213,6 +321,10 @@ def assets_list(request):
             return JsonResponse({"success": False, "message": "Asset name is required."}, status=400)
 
         acting_user = get_request_user_from_request(request)
+        purchase_order_id = _blank_to_none(data.get("purchase_order_id"))
+        expense_claim_id = _blank_to_none(data.get("expense_claim_id"))
+        purchase_defaults = _purchase_defaults_from_links(purchase_order_id, expense_claim_id)
+
         asset = Asset.objects.create(
             name=name,
             category=str(data.get("category") or "other"),
@@ -220,13 +332,13 @@ def assets_list(request):
             serial_number=str(data.get("serial_number") or "").strip(),
             location=str(data.get("location") or "").strip(),
             assigned_to_id=_blank_to_none(data.get("assigned_to_id")),
-            purchase_date=_blank_to_none(data.get("purchase_date")),
-            purchase_value=_decimal(data.get("purchase_value")),
-            supplier=str(data.get("supplier") or "").strip(),
+            purchase_date=purchase_defaults.get("purchase_date") or _blank_to_none(data.get("purchase_date")),
+            purchase_value=purchase_defaults.get("purchase_value") or _decimal(data.get("purchase_value")),
+            supplier=purchase_defaults.get("supplier") or str(data.get("supplier") or "").strip(),
             warranty_expiry=_blank_to_none(data.get("warranty_expiry")),
             notes=str(data.get("notes") or "").strip(),
-            purchase_order_id=_blank_to_none(data.get("purchase_order_id")),
-            expense_claim_id=_blank_to_none(data.get("expense_claim_id")),
+            purchase_order_id=purchase_order_id,
+            expense_claim_id=expense_claim_id,
             created_by=acting_user if acting_user and acting_user.is_authenticated else None,
         )
         AssetEvent.objects.create(
@@ -279,6 +391,11 @@ def asset_detail(request, asset_id):
             asset.purchase_order_id = _blank_to_none(data.get("purchase_order_id"))
         if "expense_claim_id" in data:
             asset.expense_claim_id = _blank_to_none(data.get("expense_claim_id"))
+        purchase_defaults = _purchase_defaults_from_links(asset.purchase_order_id, asset.expense_claim_id)
+        if purchase_defaults:
+            asset.purchase_date = purchase_defaults.get("purchase_date")
+            asset.purchase_value = purchase_defaults.get("purchase_value") or Decimal("0.00")
+            asset.supplier = purchase_defaults.get("supplier") or asset.supplier
         asset.save()
 
         acting_user = get_request_user_from_request(request)

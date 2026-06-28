@@ -5,6 +5,34 @@ from django.db import models
 from django.utils import timezone
 
 
+class AssetLocation(models.Model):
+    KIND_DEPOT = "depot"
+    KIND_OFFICE = "office"
+    KIND_VEHICLE = "vehicle"
+    KIND_STORAGE = "storage"
+    KIND_OTHER = "other"
+
+    KIND_CHOICES = [
+        (KIND_DEPOT, "Depot"),
+        (KIND_OFFICE, "Office"),
+        (KIND_VEHICLE, "Vehicle"),
+        (KIND_STORAGE, "Storage"),
+        (KIND_OTHER, "Other"),
+    ]
+
+    name = models.CharField(max_length=120, unique=True)
+    kind = models.CharField(max_length=30, choices=KIND_CHOICES, default=KIND_DEPOT)
+    address = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Asset(models.Model):
     CATEGORY_CHOICES = [
         ("vehicle", "Vehicle"),
