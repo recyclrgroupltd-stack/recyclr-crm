@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import StaffShell from "@/components/StaffShell";
 import { getAuthHeaders } from "@/lib/auth";
 
@@ -89,6 +89,39 @@ function statusClass(status: string) {
   return classes[status] || "bg-slate-100 text-slate-700";
 }
 
+function labelParts(label?: string) {
+  return (label || "").split("|").map((part) => part.trim()).filter(Boolean);
+}
+
+function OptionLabel({ option }: { option?: Option }) {
+  if (!option) return null;
+  const parts = labelParts(option.label || option.name);
+  if (parts.length <= 1) return <span>{option.label || option.name}</span>;
+  return (
+    <span className="block">
+      <span className="block font-black text-slate-950">{parts[0]}{parts[1] ? ` - ${parts[1]}` : ""}</span>
+      {parts.length > 2 ? <span className="block text-xs font-bold text-slate-500">{parts.slice(2).join(" - ")}</span> : null}
+    </span>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`grid gap-1 ${className}`}>
+      <span className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function SearchableLinkSelect({
   label,
   value,
@@ -122,7 +155,7 @@ function SearchableLinkSelect({
         }}
         className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-left text-sm font-bold text-slate-950"
       >
-        <span className={selected ? "max-h-10 overflow-hidden" : "text-slate-500"}>{selected?.label || label}</span>
+        <span className={selected ? "max-h-14 overflow-hidden" : "text-slate-500"}>{selected ? <OptionLabel option={selected} /> : label}</span>
         <span className="shrink-0 text-slate-400">v</span>
       </button>
       {open ? (
@@ -158,7 +191,7 @@ function SearchableLinkSelect({
                   }}
                   className={`block w-full px-3 py-2 text-left text-sm font-bold hover:bg-violet-50 ${String(option.id) === value ? "bg-violet-100 text-violet-800" : "text-slate-800"}`}
                 >
-                  {option.label}
+                  <OptionLabel option={option} />
                 </button>
               ))
             ) : (
@@ -402,43 +435,67 @@ button { margin: 8px; padding: 8px 12px; }
           <form onSubmit={createAsset} className="rounded-lg bg-white p-5 text-slate-950">
             <h2 className="text-lg font-black">Add Asset</h2>
             <div className="mt-4 grid gap-3">
-              <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Asset name, e.g. Samsung tablet" />
+              <Field label="Asset name">
+                <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Samsung S9+ Tablet / S-Pen" />
+              </Field>
               <div className="grid grid-cols-2 gap-3">
-                <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                  {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-                </select>
-                <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                  {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-                </select>
+                <Field label="Category">
+                  <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                    {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Status">
+                  <select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                    {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+                  </select>
+                </Field>
               </div>
-              <input value={form.serial_number} onChange={(event) => setForm({ ...form, serial_number: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Serial number" />
-              <input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Location" />
-              <select value={form.assigned_to_id} onChange={(event) => setForm({ ...form, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                <option value="">Unassigned</option>
-                {staff.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-              </select>
+              <Field label="Serial / IMEI">
+                <input value={form.serial_number} onChange={(event) => setForm({ ...form, serial_number: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="R52W60BSXMN" />
+              </Field>
+              <Field label="Location">
+                <input value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Leicester office, van, staff member..." />
+              </Field>
+              <Field label="Assigned to">
+                <select value={form.assigned_to_id} onChange={(event) => setForm({ ...form, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                  <option value="">Unassigned</option>
+                  {staff.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+                </select>
+              </Field>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={form.purchase_date} onChange={(event) => setForm({ ...form, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
-                <input value={form.purchase_value} onChange={(event) => setForm({ ...form, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Value" />
+                <Field label="Purchase date">
+                  <input type="date" value={form.purchase_date} onChange={(event) => setForm({ ...form, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                </Field>
+                <Field label="Purchase value">
+                  <input value={form.purchase_value} onChange={(event) => setForm({ ...form, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="506.99" />
+                </Field>
               </div>
-              <input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Supplier" />
-              <SearchableLinkSelect
-                label="Link purchase order"
-                value={form.purchase_order_id}
-                placeholder="Search PO, supplier, description, amount..."
-                emptyLabel="No linked purchase order"
-                options={purchaseOrders}
-                onChange={(value) => setForm({ ...form, purchase_order_id: value })}
-              />
-              <SearchableLinkSelect
-                label="Link expense"
-                value={form.expense_claim_id}
-                placeholder="Search expense, merchant, staff, amount..."
-                emptyLabel="No linked expense"
-                options={expenses}
-                onChange={(value) => setForm({ ...form, expense_claim_id: value })}
-              />
-              <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="min-h-24 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Notes" />
+              <Field label="Supplier">
+                <input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Backmarket" />
+              </Field>
+              <Field label="Purchase order link">
+                <SearchableLinkSelect
+                  label="Link purchase order"
+                  value={form.purchase_order_id}
+                  placeholder="Search PO, supplier, description, amount..."
+                  emptyLabel="No linked purchase order"
+                  options={purchaseOrders}
+                  onChange={(value) => setForm({ ...form, purchase_order_id: value })}
+                />
+              </Field>
+              <Field label="Expense receipt link">
+                <SearchableLinkSelect
+                  label="Link expense"
+                  value={form.expense_claim_id}
+                  placeholder="Search expense, item, merchant, staff, amount..."
+                  emptyLabel="No linked expense"
+                  options={expenses}
+                  onChange={(value) => setForm({ ...form, expense_claim_id: value })}
+                />
+              </Field>
+              <Field label="Notes">
+                <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className="min-h-24 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Condition, case, charger, warranty notes..." />
+              </Field>
               <button disabled={saving} className="rounded-lg bg-violet-700 px-4 py-3 text-sm font-black text-white disabled:opacity-50">
                 {saving ? "Saving..." : "Create Asset"}
               </button>
@@ -519,41 +576,69 @@ button { margin: 8px; padding: 8px 12px; }
                     <div className="text-xs font-bold text-slate-500">70mm x 35mm label</div>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
-                    <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
-                    <input value={editForm.serial_number} onChange={(event) => setEditForm({ ...editForm, serial_number: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Serial number" />
-                    <select value={editForm.category} onChange={(event) => setEditForm({ ...editForm, category: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                      {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-                    </select>
-                    <select value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                      {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-                    </select>
-                    <input value={editForm.location} onChange={(event) => setEditForm({ ...editForm, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Location" />
-                    <select value={editForm.assigned_to_id} onChange={(event) => setEditForm({ ...editForm, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
-                      <option value="">Unassigned</option>
-                      {staff.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-                    </select>
-                    <input type="date" value={editForm.purchase_date} onChange={(event) => setEditForm({ ...editForm, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
-                    <input value={editForm.purchase_value} onChange={(event) => setEditForm({ ...editForm, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Value" />
-                    <input value={editForm.supplier} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Supplier" />
-                    <input type="date" value={editForm.warranty_expiry} onChange={(event) => setEditForm({ ...editForm, warranty_expiry: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
-                    <SearchableLinkSelect
-                      label="No linked PO"
-                      value={editForm.purchase_order_id}
-                      placeholder="Search PO, supplier, description, amount..."
-                      emptyLabel="No linked purchase order"
-                      options={purchaseOrders}
-                      onChange={(value) => setEditForm({ ...editForm, purchase_order_id: value })}
-                    />
-                    <SearchableLinkSelect
-                      label="No linked expense"
-                      value={editForm.expense_claim_id}
-                      placeholder="Search expense, merchant, staff, amount..."
-                      emptyLabel="No linked expense"
-                      options={expenses}
-                      onChange={(value) => setEditForm({ ...editForm, expense_claim_id: value })}
-                    />
-                    <textarea value={editForm.notes} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} className="min-h-24 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold md:col-span-2" placeholder="Notes" />
-                    <input value={editForm.change_note} onChange={(event) => setEditForm({ ...editForm, change_note: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold md:col-span-2" placeholder="Change note" />
+                    <Field label="Asset name">
+                      <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                    </Field>
+                    <Field label="Serial / IMEI">
+                      <input value={editForm.serial_number} onChange={(event) => setEditForm({ ...editForm, serial_number: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Serial number" />
+                    </Field>
+                    <Field label="Category">
+                      <select value={editForm.category} onChange={(event) => setEditForm({ ...editForm, category: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                        {categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Status">
+                      <select value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                        {statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Location">
+                      <input value={editForm.location} onChange={(event) => setEditForm({ ...editForm, location: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Location" />
+                    </Field>
+                    <Field label="Assigned to">
+                      <select value={editForm.assigned_to_id} onChange={(event) => setEditForm({ ...editForm, assigned_to_id: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold">
+                        <option value="">Unassigned</option>
+                        {staff.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Purchase date">
+                      <input type="date" value={editForm.purchase_date} onChange={(event) => setEditForm({ ...editForm, purchase_date: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                    </Field>
+                    <Field label="Purchase value">
+                      <input value={editForm.purchase_value} onChange={(event) => setEditForm({ ...editForm, purchase_value: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Value" />
+                    </Field>
+                    <Field label="Supplier">
+                      <input value={editForm.supplier} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Supplier" />
+                    </Field>
+                    <Field label="Warranty expiry">
+                      <input type="date" value={editForm.warranty_expiry} onChange={(event) => setEditForm({ ...editForm, warranty_expiry: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" />
+                    </Field>
+                    <Field label="Purchase order link">
+                      <SearchableLinkSelect
+                        label="No linked PO"
+                        value={editForm.purchase_order_id}
+                        placeholder="Search PO, supplier, description, amount..."
+                        emptyLabel="No linked purchase order"
+                        options={purchaseOrders}
+                        onChange={(value) => setEditForm({ ...editForm, purchase_order_id: value })}
+                      />
+                    </Field>
+                    <Field label="Expense receipt link">
+                      <SearchableLinkSelect
+                        label="No linked expense"
+                        value={editForm.expense_claim_id}
+                        placeholder="Search expense, item, merchant, staff, amount..."
+                        emptyLabel="No linked expense"
+                        options={expenses}
+                        onChange={(value) => setEditForm({ ...editForm, expense_claim_id: value })}
+                      />
+                    </Field>
+                    <Field label="Notes" className="md:col-span-2">
+                      <textarea value={editForm.notes} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} className="min-h-24 rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Notes" />
+                    </Field>
+                    <Field label="Change note" className="md:col-span-2">
+                      <input value={editForm.change_note} onChange={(event) => setEditForm({ ...editForm, change_note: event.target.value })} className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm font-bold" placeholder="Why this asset was changed" />
+                    </Field>
                     <button disabled={saving} className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50 md:col-span-2">
                       {saving ? "Saving..." : "Save Asset"}
                     </button>

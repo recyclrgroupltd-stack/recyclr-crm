@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts_api.views import get_request_user_from_request
-from expenses.models import ExpenseClaim
+from expenses.models import ExpenseClaim, ExpenseLine
 from purchase_orders.models import PurchaseOrder, PurchaseOrderLine
 
 from .models import Asset, AssetEvent
@@ -72,10 +72,13 @@ def _purchase_order_option_label(order):
 
 def _expense_option_label(expense):
     staff_name = _staff_display_name(expense.submitted_by)
-    merchant = expense.merchant or expense.category.name
+    line = next(iter(getattr(expense, "prefetched_lines", [])), None)
+    item = line.description if line and line.description else expense.description or expense.category.name
+    merchant = expense.merchant or (line.merchant if line and line.merchant else expense.category.name)
     return " | ".join(
         [
             f"EXP-{expense.id:06d}",
+            item,
             merchant,
             expense.category.name,
             staff_name or "Staff not set",
@@ -136,7 +139,11 @@ def options(request):
         .prefetch_related(Prefetch("lines", queryset=PurchaseOrderLine.objects.order_by("line_order", "id"), to_attr="prefetched_lines"))
         .order_by("-id")[:250]
     )
-    expenses = ExpenseClaim.objects.select_related("submitted_by", "category").order_by("-id")[:250]
+    expenses = (
+        ExpenseClaim.objects.select_related("submitted_by", "category")
+        .prefetch_related(Prefetch("lines", queryset=ExpenseLine.objects.order_by("id"), to_attr="prefetched_lines"))
+        .order_by("-id")[:250]
+    )
     return JsonResponse(
         {
             "success": True,
