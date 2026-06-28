@@ -325,10 +325,7 @@ export default function ServiceMapPage() {
       });
       let tileErrors = 0;
       layer.on("load", () => {
-        if (!cancelled) {
-          setMapReady(true);
-          setMapError("");
-        }
+        if (!cancelled) setMapError("");
       });
       layer.on("tileerror", () => {
         tileErrors += 1;
@@ -356,12 +353,12 @@ export default function ServiceMapPage() {
         scrollWheelZoom: true,
       });
       addTiles(L, mapRef.current);
+      setMapReady(true);
       window.setTimeout(() => {
         mapRef.current?.invalidateSize();
       }, 120);
       window.setTimeout(() => {
         mapRef.current?.invalidateSize();
-        if (!cancelled) setMapReady(true);
       }, 650);
     }
 
