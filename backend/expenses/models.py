@@ -130,6 +130,7 @@ class ExpenseLine(models.Model):
     )
     description = models.CharField(max_length=255, blank=True)
     merchant = models.CharField(max_length=255, blank=True)
+    serial_number = models.CharField(max_length=120, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     vat_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)

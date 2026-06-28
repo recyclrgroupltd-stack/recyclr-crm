@@ -49,6 +49,7 @@ type ExpenseLine = {
   category?: string;
   description: string;
   merchant: string;
+  serial_number: string;
   amount: number | string;
   vat_amount: number | string;
 };
@@ -115,7 +116,7 @@ export default function ExpensesPage() {
   });
   const [entryMode, setEntryMode] = useState<"manual" | "automatic">("manual");
   const [expenseLines, setExpenseLines] = useState<ExpenseLine[]>([
-    { category_id: "", description: "", merchant: "", amount: "", vat_amount: "" },
+    { category_id: "", description: "", merchant: "", serial_number: "", amount: "", vat_amount: "" },
   ]);
   const [receipt, setReceipt] = useState<File | null>(null);
 
@@ -198,7 +199,7 @@ export default function ExpensesPage() {
   function addLine() {
     setExpenseLines((current) => [
       ...current,
-      { category_id: form.category_id, description: "", merchant: form.merchant, amount: "", vat_amount: "" },
+      { category_id: form.category_id, description: "", merchant: "", serial_number: "", amount: "", vat_amount: "" },
     ]);
   }
 
@@ -216,6 +217,16 @@ export default function ExpensesPage() {
     }));
   }
 
+  function lineCategoryName(line: ExpenseLine) {
+    const categoryId = String(line.category_id || form.category_id);
+    return activeCategories.find((category) => String(category.id) === categoryId)?.name || "";
+  }
+
+  function lineNeedsSerial(line: ExpenseLine) {
+    const name = lineCategoryName(line).toLowerCase();
+    return ["it", "tech", "device", "tablet", "phone", "mobile", "laptop", "computer", "vehicle", "fleet", "plant", "machinery", "tool", "equipment"].some((term) => name.includes(term));
+  }
+
   async function submitExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -228,7 +239,11 @@ export default function ExpensesPage() {
       payload.append("mileage_rate", String(mileageRate));
       payload.append("vat_rate", String(vatRate));
       payload.append("entry_mode", entryMode);
-      payload.append("lines", JSON.stringify(expenseLines));
+      const linesForPayload = expenseLines.map((line) => ({
+        ...line,
+        merchant: line.merchant || form.merchant,
+      }));
+      payload.append("lines", JSON.stringify(linesForPayload));
       if (receipt) payload.append("receipt", receipt);
 
       const response = await fetch("/api/expenses/", {
@@ -251,7 +266,7 @@ export default function ExpensesPage() {
         mileage: "",
       });
       setEntryMode("manual");
-      setExpenseLines([{ category_id: form.category_id, description: "", merchant: "", amount: "", vat_amount: "" }]);
+      setExpenseLines([{ category_id: form.category_id, description: "", merchant: "", serial_number: "", amount: "", vat_amount: "" }]);
       setReceipt(null);
       const fileInput = document.getElementById("expense-receipt") as HTMLInputElement | null;
       if (fileInput) fileInput.value = "";
@@ -550,12 +565,22 @@ export default function ExpensesPage() {
                             placeholder="What was bought?"
                             className="w-full rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm font-semibold outline-none"
                           />
-                          <input
-                            value={line.merchant}
-                            onChange={(event) => updateLine(index, "merchant", event.target.value)}
-                            placeholder="Merchant for this line"
-                            className="w-full rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm font-semibold outline-none"
-                          />
+                          {lineNeedsSerial(line) ? (
+                            <input
+                              value={line.serial_number}
+                              onChange={(event) => updateLine(index, "serial_number", event.target.value)}
+                              placeholder="Serial / IMEI / asset number"
+                              className="w-full rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm font-semibold outline-none"
+                            />
+                          ) : null}
+                          {expenseLines.length > 1 ? (
+                            <input
+                              value={line.merchant}
+                              onChange={(event) => updateLine(index, "merchant", event.target.value)}
+                              placeholder="Different merchant for this line (optional)"
+                              className="w-full rounded-lg border border-violet-100 bg-violet-50 px-3 py-2 text-sm font-semibold outline-none"
+                            />
+                          ) : null}
                           <div className="grid grid-cols-2 gap-2">
                             <input
                               type="number"
@@ -796,6 +821,9 @@ export default function ExpensesPage() {
                       <div>
                         <div className="font-black">{line.description || line.category || "Expense line"}</div>
                         <div className="text-xs font-semibold text-slate-500">{line.merchant || selectedExpense.merchant || "-"}</div>
+                        {line.serial_number ? (
+                          <div className="mt-1 text-xs font-black text-slate-500">Serial / IMEI: {line.serial_number}</div>
+                        ) : null}
                       </div>
                       <div className="font-black">{formatMoney(line.amount)}</div>
                       <div className="font-semibold text-slate-500">VAT {formatMoney(line.vat_amount)}</div>

@@ -24,9 +24,17 @@ User = get_user_model()
 DEFAULT_CATEGORIES = [
     "Mileage",
     "Parking",
+    "IT / Tech",
+    "Software / Subscriptions",
+    "Phone / Mobile",
+    "Office Equipment",
+    "Vehicle / Fleet",
+    "Repairs / Maintenance",
+    "Postage / Courier",
     "Tools",
     "Uniform",
     "Materials",
+    "PPE",
     "Accommodation",
     "Meals",
     "Training",
@@ -223,6 +231,7 @@ def _parse_lines(raw_lines, default_category, vat_rate):
                 "category": category,
                 "description": _clean(line.get("description")),
                 "merchant": _clean(line.get("merchant")),
+                "serial_number": _clean(line.get("serial_number"))[:120],
                 "amount": amount.quantize(Decimal("0.01")),
                 "vat_amount": vat_amount.quantize(Decimal("0.01")),
             }
@@ -237,6 +246,7 @@ def _serialize_line(line):
         "category": line.category.name if line.category_id else "",
         "description": line.description,
         "merchant": line.merchant,
+        "serial_number": line.serial_number,
         "amount": float(line.amount or 0),
         "vat_amount": float(line.vat_amount or 0),
     }
