@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from accounts_api.views import require_permission
 from crm_email.services import send_staff_mailbox_email
 from jobs.models import Job
-from .models import Haulier, HaulierPortalUser, HaulierRate
+from .models import Haulier, HaulierCoverage, HaulierPortalUser, HaulierRate
 
 
 def _parse_json_body(request):
@@ -51,6 +51,24 @@ def _decimal_value(value, default=0):
         return float(default)
 
 
+def _date_or_none(value):
+    if not value:
+        return None
+    try:
+        return timezone.datetime.strptime(str(value), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def _collection_days(value):
+    allowed = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}
+    if isinstance(value, list):
+        return [day for day in value if day in allowed]
+    if isinstance(value, str):
+        return [day.strip().lower() for day in value.split(",") if day.strip().lower() in allowed]
+    return []
+
+
 def _portal_set_password_link(token):
     base_url = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
     return f"{base_url}/haulier-portal/set-password/{token}"
@@ -82,10 +100,20 @@ def _serialize_haulier(haulier):
         "contact_name": haulier.contact_name,
         "email": haulier.email,
         "phone": haulier.phone,
+        "emergency_phone": haulier.emergency_phone,
+        "website": haulier.website,
+        "address": haulier.address,
+        "account_reference": haulier.account_reference,
+        "payment_terms_days": haulier.payment_terms_days,
+        "waste_carrier_license": haulier.waste_carrier_license,
+        "environmental_permit": haulier.environmental_permit,
+        "insurance_expiry": haulier.insurance_expiry.isoformat() if haulier.insurance_expiry else "",
+        "sla_notes": haulier.sla_notes,
         "notes": haulier.notes,
         "active": haulier.active,
         "created_at": haulier.created_at.isoformat() if haulier.created_at else "",
         "rate_count": haulier.rates.count(),
+        "coverage_count": haulier.coverage_entries.count(),
         "portal_user_count": haulier.portal_users.count(),
     }
 
@@ -106,6 +134,30 @@ def _serialize_rate(rate):
         "notes": rate.notes,
         "created_at": rate.created_at.isoformat() if rate.created_at else "",
         "updated_at": rate.updated_at.isoformat() if rate.updated_at else "",
+    }
+
+
+def _serialize_coverage(entry):
+    return {
+        "id": entry.id,
+        "haulier_id": entry.haulier_id,
+        "haulier_name": entry.haulier.name,
+        "waste_type": entry.waste_type,
+        "waste_type_label": entry.get_waste_type_display(),
+        "postcode_area": entry.postcode_area,
+        "collection_days": entry.collection_days or [],
+        "service_type": entry.service_type,
+        "service_type_label": entry.get_service_type_display(),
+        "lead_time_days": entry.lead_time_days,
+        "minimum_lift_charge": _money(entry.minimum_lift_charge),
+        "fuel_surcharge_percent": _decimal_value(entry.fuel_surcharge_percent),
+        "requires_po": entry.requires_po,
+        "booking_cutoff": entry.booking_cutoff,
+        "vehicle_notes": entry.vehicle_notes,
+        "restrictions": entry.restrictions,
+        "active": entry.active,
+        "created_at": entry.created_at.isoformat() if entry.created_at else "",
+        "updated_at": entry.updated_at.isoformat() if entry.updated_at else "",
     }
 
 
@@ -223,6 +275,15 @@ def hauliers_list(request):
             contact_name=(data.get("contact_name") or "").strip(),
             email=(data.get("email") or "").strip(),
             phone=(data.get("phone") or "").strip(),
+            emergency_phone=(data.get("emergency_phone") or "").strip(),
+            website=(data.get("website") or "").strip(),
+            address=(data.get("address") or "").strip(),
+            account_reference=(data.get("account_reference") or "").strip(),
+            payment_terms_days=int(data.get("payment_terms_days") or 30),
+            waste_carrier_license=(data.get("waste_carrier_license") or "").strip(),
+            environmental_permit=(data.get("environmental_permit") or "").strip(),
+            insurance_expiry=_date_or_none(data.get("insurance_expiry")),
+            sla_notes=(data.get("sla_notes") or "").strip(),
             notes=(data.get("notes") or "").strip(),
             active=_bool_value(data.get("active", True)),
         )
@@ -252,7 +313,7 @@ def haulier_detail(request, haulier_id):
         return JsonResponse(_serialize_haulier(haulier))
 
     if request.method == "POST":
-        _, error_response = _require_haulier_edit_access(request)
+        staff_user, error_response = _require_haulier_edit_access(request)
         if error_response:
             return error_response
 
@@ -271,6 +332,15 @@ def haulier_detail(request, haulier_id):
         haulier.contact_name = (data.get("contact_name") or "").strip()
         haulier.email = (data.get("email") or "").strip()
         haulier.phone = (data.get("phone") or "").strip()
+        haulier.emergency_phone = (data.get("emergency_phone") or "").strip()
+        haulier.website = (data.get("website") or "").strip()
+        haulier.address = (data.get("address") or "").strip()
+        haulier.account_reference = (data.get("account_reference") or "").strip()
+        haulier.payment_terms_days = int(data.get("payment_terms_days") or 30)
+        haulier.waste_carrier_license = (data.get("waste_carrier_license") or "").strip()
+        haulier.environmental_permit = (data.get("environmental_permit") or "").strip()
+        haulier.insurance_expiry = _date_or_none(data.get("insurance_expiry"))
+        haulier.sla_notes = (data.get("sla_notes") or "").strip()
         haulier.notes = (data.get("notes") or "").strip()
         haulier.active = _bool_value(data.get("active", True))
         haulier.save()
@@ -282,6 +352,137 @@ def haulier_detail(request, haulier_id):
                 "haulier": _serialize_haulier(haulier),
             }
         )
+
+    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+@csrf_exempt
+def haulier_coverage_list(request):
+    if request.method == "GET":
+        _, error_response = _require_haulier_view_access(request)
+        if error_response:
+            return error_response
+
+        haulier_id = request.GET.get("haulier_id")
+        entries = HaulierCoverage.objects.select_related("haulier").all()
+
+        if haulier_id and haulier_id != "all":
+            entries = entries.filter(haulier_id=haulier_id)
+
+        return JsonResponse([_serialize_coverage(entry) for entry in entries], safe=False)
+
+    if request.method == "POST":
+        staff_user, error_response = _require_haulier_edit_access(request)
+        if error_response:
+            return error_response
+
+        data = _parse_json_body(request)
+        if data is None:
+            return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+        haulier_id = data.get("haulier_id")
+        waste_type = (data.get("waste_type") or "").strip()
+        postcode_area = (data.get("postcode_area") or "").strip().upper()
+
+        if not haulier_id:
+            return JsonResponse({"success": False, "message": "Haulier is required."}, status=400)
+        if not waste_type:
+            return JsonResponse({"success": False, "message": "Waste stream is required."}, status=400)
+        if not postcode_area:
+            return JsonResponse({"success": False, "message": "Postcode area is required."}, status=400)
+
+        haulier = Haulier.objects.filter(id=haulier_id).first()
+        if not haulier:
+            return JsonResponse({"success": False, "message": "Haulier not found."}, status=404)
+
+        entry = HaulierCoverage.objects.create(
+            haulier=haulier,
+            waste_type=waste_type,
+            postcode_area=postcode_area,
+            collection_days=_collection_days(data.get("collection_days")),
+            service_type=(data.get("service_type") or "scheduled").strip(),
+            lead_time_days=int(data.get("lead_time_days") or 2),
+            minimum_lift_charge=data.get("minimum_lift_charge") or 0,
+            fuel_surcharge_percent=data.get("fuel_surcharge_percent") or 0,
+            requires_po=_bool_value(data.get("requires_po", False)),
+            booking_cutoff=(data.get("booking_cutoff") or "").strip(),
+            vehicle_notes=(data.get("vehicle_notes") or "").strip(),
+            restrictions=(data.get("restrictions") or "").strip(),
+            active=_bool_value(data.get("active", True)),
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Haulier coverage added.",
+                "coverage": _serialize_coverage(entry),
+            }
+        )
+
+    return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
+
+
+@csrf_exempt
+def haulier_coverage_detail(request, coverage_id):
+    entry = HaulierCoverage.objects.select_related("haulier").filter(id=coverage_id).first()
+
+    if not entry:
+        return JsonResponse({"success": False, "message": "Coverage entry not found."}, status=404)
+
+    if request.method == "GET":
+        _, error_response = _require_haulier_view_access(request)
+        if error_response:
+            return error_response
+        return JsonResponse(_serialize_coverage(entry))
+
+    if request.method == "POST":
+        _, error_response = _require_haulier_edit_access(request)
+        if error_response:
+            return error_response
+
+        data = _parse_json_body(request)
+        if data is None:
+            return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+        haulier_id = data.get("haulier_id")
+        haulier = Haulier.objects.filter(id=haulier_id).first()
+        if not haulier:
+            return JsonResponse({"success": False, "message": "Haulier not found."}, status=404)
+
+        postcode_area = (data.get("postcode_area") or "").strip().upper()
+        waste_type = (data.get("waste_type") or "").strip()
+        if not postcode_area or not waste_type:
+            return JsonResponse({"success": False, "message": "Postcode area and waste stream are required."}, status=400)
+
+        entry.haulier = haulier
+        entry.waste_type = waste_type
+        entry.postcode_area = postcode_area
+        entry.collection_days = _collection_days(data.get("collection_days"))
+        entry.service_type = (data.get("service_type") or "scheduled").strip()
+        entry.lead_time_days = int(data.get("lead_time_days") or 2)
+        entry.minimum_lift_charge = data.get("minimum_lift_charge") or 0
+        entry.fuel_surcharge_percent = data.get("fuel_surcharge_percent") or 0
+        entry.requires_po = _bool_value(data.get("requires_po", False))
+        entry.booking_cutoff = (data.get("booking_cutoff") or "").strip()
+        entry.vehicle_notes = (data.get("vehicle_notes") or "").strip()
+        entry.restrictions = (data.get("restrictions") or "").strip()
+        entry.active = _bool_value(data.get("active", True))
+        entry.save()
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Haulier coverage updated.",
+                "coverage": _serialize_coverage(entry),
+            }
+        )
+
+    if request.method == "DELETE":
+        _, error_response = _require_haulier_edit_access(request)
+        if error_response:
+            return error_response
+        entry.delete()
+        return JsonResponse({"success": True, "message": "Haulier coverage removed."})
 
     return JsonResponse({"success": False, "message": "Method not allowed."}, status=405)
 
@@ -442,7 +643,7 @@ def portal_users_list(request):
         return JsonResponse([_serialize_portal_user(user) for user in users], safe=False)
 
     if request.method == "POST":
-        _, error_response = _require_haulier_edit_access(request)
+        staff_user, error_response = _require_haulier_edit_access(request)
         if error_response:
             return error_response
 

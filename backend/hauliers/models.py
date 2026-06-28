@@ -22,6 +22,15 @@ class Haulier(models.Model):
     contact_name = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=50, blank=True)
+    emergency_phone = models.CharField(max_length=50, blank=True)
+    website = models.URLField(blank=True)
+    address = models.TextField(blank=True)
+    account_reference = models.CharField(max_length=100, blank=True)
+    payment_terms_days = models.PositiveSmallIntegerField(default=30)
+    waste_carrier_license = models.CharField(max_length=120, blank=True)
+    environmental_permit = models.CharField(max_length=120, blank=True)
+    insurance_expiry = models.DateField(null=True, blank=True)
+    sla_notes = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -31,6 +40,53 @@ class Haulier(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class HaulierCoverage(models.Model):
+    WASTE_TYPE_CHOICES = [
+        ("general", "General Waste"),
+        ("mixed_recycling", "Mixed Recycling"),
+        ("cardboard", "Cardboard"),
+        ("glass", "Glass"),
+        ("food", "Food"),
+        ("paper", "Paper"),
+    ]
+
+    SERVICE_TYPE_CHOICES = [
+        ("scheduled", "Scheduled"),
+        ("adhoc", "Ad hoc"),
+        ("both", "Scheduled and ad hoc"),
+    ]
+
+    haulier = models.ForeignKey(
+        Haulier,
+        on_delete=models.CASCADE,
+        related_name="coverage_entries",
+    )
+    waste_type = models.CharField(max_length=30, choices=WASTE_TYPE_CHOICES)
+    postcode_area = models.CharField(max_length=80)
+    collection_days = models.JSONField(default=list, blank=True)
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPE_CHOICES, default="scheduled")
+    lead_time_days = models.PositiveSmallIntegerField(default=2)
+    minimum_lift_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    fuel_surcharge_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    requires_po = models.BooleanField(default=False)
+    booking_cutoff = models.CharField(max_length=80, blank=True)
+    vehicle_notes = models.TextField(blank=True)
+    restrictions = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["haulier__name", "postcode_area", "waste_type"]
+        indexes = [
+            models.Index(fields=["waste_type", "postcode_area"]),
+            models.Index(fields=["haulier", "active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.haulier.name} - {self.get_waste_type_display()} - {self.postcode_area}"
 
 
 class HaulierPortalUser(models.Model):
@@ -109,8 +165,10 @@ class HaulierRate(models.Model):
     WASTE_TYPE_CHOICES = [
         ("general", "General Waste"),
         ("mixed_recycling", "Mixed Recycling"),
+        ("cardboard", "Cardboard"),
         ("glass", "Glass"),
         ("food", "Food"),
+        ("paper", "Paper"),
     ]
 
     BIN_SIZE_CHOICES = [

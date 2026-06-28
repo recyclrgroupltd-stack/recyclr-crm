@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import (
     forgot_password,
+    haulier_coverage_detail,
+    haulier_coverage_list,
     haulier_detail,
     haulier_rate_detail,
     haulier_rates_list,
@@ -18,6 +20,8 @@ from .views import (
 urlpatterns = [
     path("", hauliers_list, name="hauliers-list"),
     path("<int:haulier_id>/", haulier_detail, name="haulier-detail"),
+    path("coverage/", haulier_coverage_list, name="haulier-coverage-list"),
+    path("coverage/<int:coverage_id>/", haulier_coverage_detail, name="haulier-coverage-detail"),
     path("rates/", haulier_rates_list, name="haulier-rates-list"),
     path("rates/<int:rate_id>/", haulier_rate_detail, name="haulier-rate-detail"),
 

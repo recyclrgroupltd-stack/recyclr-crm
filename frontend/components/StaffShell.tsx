@@ -148,7 +148,7 @@ const operationsItems: NavItem[] = [
 ];
 
 const supplierItems: NavItem[] = [
-  { label: "Haulier Pricing", href: "/haulier-pricing", icon: "H" },
+  { label: "Hauliers", href: "/haulier-pricing", icon: "H" },
 ];
 
 const financeItems: NavItem[] = [
