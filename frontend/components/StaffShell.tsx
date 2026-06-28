@@ -1915,14 +1915,14 @@ export default function StaffShell({ title, children }: StaffShellProps) {
                   </span>
                 </button>
                 {notificationsOpen ? (
-                  <div className="absolute right-0 top-12 z-50 w-[380px] overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-2xl">
+                  <div className="fixed left-3 right-3 top-20 z-50 overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[380px] sm:max-w-[calc(100vw-2rem)]">
                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                       <div>
                         <div className="text-sm font-bold">Notifications</div>
                         <div className="text-xs text-slate-500">{notificationBadgeCount} needing attention</div>
                       </div>
                     </div>
-                    <div className="max-h-[420px] overflow-y-auto">
+                    <div className="max-h-[60vh] overflow-y-auto sm:max-h-[420px]">
                       {calendarRequestCount > 0 ? (
                         <button
                           type="button"

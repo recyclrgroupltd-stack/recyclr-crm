@@ -193,7 +193,7 @@ async function readJson(res: Response) {
   try {
     return text ? JSON.parse(text) : {};
   } catch {
-    throw new Error("Server returned a non-JSON response. Please redeploy the backend.");
+    throw new Error("That backend feature is still deploying. Refresh after the Render backend finishes.");
   }
 }
 
@@ -262,7 +262,12 @@ export default function HaulierPricingPage() {
     try {
       setLoading(true);
       setError("");
-      await Promise.all([loadHauliers(), loadRates(), loadCoverage(), loadPortalUsers()]);
+      const results = await Promise.allSettled([loadHauliers(), loadRates(), loadCoverage(), loadPortalUsers()]);
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed && failed.status === "rejected") {
+        const message = failed.reason instanceof Error ? failed.reason.message : "Some haulier network data could not be loaded.";
+        setError(message);
+      }
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Failed to load haulier network data.");
@@ -284,9 +289,13 @@ export default function HaulierPricingPage() {
 
   useEffect(() => {
     if (!canView) return;
-    loadRates();
-    loadCoverage();
-    loadPortalUsers();
+    Promise.allSettled([loadRates(), loadCoverage(), loadPortalUsers()]).then((results) => {
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed && failed.status === "rejected") {
+        const message = failed.reason instanceof Error ? failed.reason.message : "Some haulier network data could not be loaded.";
+        setError(message);
+      }
+    });
   }, [selectedHaulier, canView]);
 
   const selectedHaulierName = useMemo(() => {
